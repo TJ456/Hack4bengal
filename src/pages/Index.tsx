@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import WalletConnect from '@/components/WalletConnect';
 import ThreatMonitor from '@/components/ThreatMonitor';
 import TransactionHistory from '@/components/TransactionHistory';
-import DAOPanel from '@/components/DAOPanel';
+import DAOPanel from '@/components/dao/DAOPanel';
 import TransactionInterceptor from '@/components/TransactionInterceptor';
 import SecurityScore from '@/components/SecurityScore';
 import AILearningFeedback from '@/components/AILearningFeedback';
@@ -321,47 +321,7 @@ const Index = () => {
           
           {activeTab === 'dao' && (
             <div className="space-y-6">
-              {/* Enhanced DAO Panel */}
-              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Community DAO Voting</CardTitle>
-                  <p className="text-gray-400">
-                    Vote on community threat reports and earn Shield Points! 
-                    <span className="text-cyan-400">+2 points per vote</span>
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {/* Sample proposals with enhanced voting */}
-                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                      <div className="flex justify-between items-start mb-3">
-                        <div>
-                          <h4 className="text-white font-medium">Malicious NFT Minting Contract</h4>
-                          <p className="text-sm text-gray-400">0x1234...5678 - Reported for unauthorized minting</p>
-                        </div>
-                        <Badge className="bg-red-500/20 text-red-400">High Risk</Badge>
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button 
-                          size="sm" 
-                          className="bg-green-600 hover:bg-green-700"
-                          onClick={() => handleDAOVote(1, 'approve')}
-                        >
-                          Approve Block
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline" 
-                          className="border-red-500/30 text-red-400 hover:bg-red-500/10"
-                          onClick={() => handleDAOVote(1, 'reject')}
-                        >
-                          Reject
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              <DAOPanel />
             </div>
           )}
 

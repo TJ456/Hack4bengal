@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Shield, Activity, AlertTriangle, CheckCircle, Zap, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import contractService from '@/web3/contract';
 import walletConnector from '@/web3/wallet';
 import { shortenAddress } from '@/web3/utils';
+import { ethers } from 'ethers';
 
 interface ThreatMonitorProps {
   threatLevel: 'safe' | 'warning' | 'danger';
@@ -19,67 +20,192 @@ interface ScanResult {
   riskScore: number;
 }
 
+interface NetworkInfo {
+  name: string;
+  chainId: number;
+  ensSupported: boolean;
+}
+
+// Network-specific configurations
+const NETWORK_CONFIGS: { [key: number]: NetworkInfo } = {
+  1: { name: 'Ethereum Mainnet', chainId: 1, ensSupported: true },
+  5: { name: 'Goerli', chainId: 5, ensSupported: true },
+  11155111: { name: 'Sepolia', chainId: 11155111, ensSupported: true },
+  // Monad networks
+  10143: { name: 'Monad Local', chainId: 10143, ensSupported: false },
+  131914: { name: 'Monad Testnet', chainId: 131914, ensSupported: false },
+  1024: { name: 'Monad Mainnet', chainId: 1024, ensSupported: false }
+};
+
+// Known contract addresses and names
+const CONTRACT_ADDRESSES = {
+  UNISWAP_TOKEN: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+  TETHER_USD: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+  WRAPPED_BTC: '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599',
+  UNISWAP_ROUTER: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D',
+  DAI_STABLECOIN: '0x6B175474E89094C44Da98b954EedeAC495271d0F'
+} as const;
+
+// Status icon map for consistent UI
+const STATUS_ICONS = {
+  safe: (className: string) => <CheckCircle className={className} />,
+  warning: (className: string) => <AlertTriangle className={className} />,
+  danger: (className: string) => <Shield className={className} />
+} as const;
+
+// Status color map for consistent styling
+const STATUS_COLORS = {
+  safe: 'text-green-400 bg-green-500/20',
+  warning: 'text-yellow-400 bg-yellow-500/20',
+  danger: 'text-red-400 bg-red-500/20'
+} as const;
+
+/**
+ * Resolves an Ethereum address or ENS name based on network support
+ */
+const resolveAddress = async (input: string | null | undefined, provider: ethers.Provider): Promise<string> => {
+  if (!input) throw new Error('Input address or ENS name is required');
+  const inputStr = input.toString();
+  try {
+    // Get network information
+    const network = await provider.getNetwork();
+    const networkId = Number(network.chainId);
+    const networkConfig: NetworkInfo = NETWORK_CONFIGS[networkId] || {
+      name: network.name || 'Unknown Network',
+      chainId: networkId,
+      ensSupported: false
+    };
+
+    // Return immediately if it's a valid address
+    if (ethers.isAddress(input)) {
+      return input;
+    }
+    const lowerInput = inputStr.toLowerCase();
+    // Check if it's an ENS name
+    const isENSName = lowerInput.endsWith('.eth');
+
+    // Special handling for Monad networks
+    if ([10143, 131914, 1024].includes(networkId)) {
+      if (isENSName) {
+        throw new Error(`ENS names are not supported on ${networkConfig.name}. Please use the address directly.`);
+      }
+      // Additional validation for Monad addresses could go here
+    }
+
+    // Handle ENS resolution for supported networks
+    if (networkConfig.ensSupported && isENSName) {
+      try {
+        const resolved = await provider.resolveName(input);
+        if (resolved) {
+          return resolved;
+        }
+        throw new Error(`Could not resolve ENS name: ${input}`);
+      } catch (ensError) {
+        if ((ensError as any)?.code === 'UNSUPPORTED_OPERATION') {
+          throw new Error(`This network does not support ENS. Please use the address directly.`);
+        }
+        throw new Error(`Failed to resolve ENS name (${input}). ${(ensError as Error).message}`);
+      }
+    }
+
+    // Handle invalid input
+    if (isENSName && !networkConfig.ensSupported) {
+      throw new Error(
+        `ENS names are not supported on ${networkConfig.name}. ` +
+        'Please use the Ethereum address directly.'
+      );
+    }
+
+    throw new Error(
+      'Invalid input. Please provide a valid Ethereum address' +
+      (networkConfig.ensSupported ? ' or ENS name.' : '.')
+    );
+
+  } catch (error: any) {
+    // Handle network-specific errors
+    if (error.code === 'UNSUPPORTED_OPERATION') {
+      throw new Error(
+        `The current network (${await provider.getNetwork().then(n => n.name || 'Unknown')}) ` +
+        'does not support ENS resolution. Please use the address directly.'
+      );
+    }
+    throw error;
+  }
+};
+
 const ThreatMonitor: React.FC<ThreatMonitorProps> = ({ threatLevel }) => {
   const [recentScans, setRecentScans] = useState<ScanResult[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [networkInfo, setNetworkInfo] = useState<NetworkInfo | null>(null);
 
-  // Well-known contracts with their names (in a production app, this would come from a database or API)
-  const knownContracts: Record<string, string> = {
-    '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984': 'Uniswap Token',
-    '0xdAC17F958D2ee523a2206206994597C13D831ec7': 'Tether USD',
-    '0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599': 'Wrapped BTC',
-    '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D': 'Uniswap Router',
-    '0x6B175474E89094C44Da98b954EedeAC495271d0F': 'DAI Stablecoin'
-  };
+  // Memoize known contracts mapping
+  const knownContracts = useMemo(() => ({
+    [CONTRACT_ADDRESSES.UNISWAP_TOKEN]: 'Uniswap Token',
+    [CONTRACT_ADDRESSES.TETHER_USD]: 'Tether USD',
+    [CONTRACT_ADDRESSES.WRAPPED_BTC]: 'Wrapped BTC',
+    [CONTRACT_ADDRESSES.UNISWAP_ROUTER]: 'Uniswap Router',
+    [CONTRACT_ADDRESSES.DAI_STABLECOIN]: 'DAI Stablecoin'
+  }), []);
 
-  // Helper function to get contract names
+  // Network-aware helpers
+  const isMonadNetwork = useMemo(() => {
+    return networkInfo ? [10143, 131914, 1024].includes(networkInfo.chainId) : false;
+  }, [networkInfo?.chainId]);
+
+  // Get contract name with network context
   const getContractName = async (address: string): Promise<string> => {
-    // Check if it's a known contract
-    if (knownContracts[address.toLowerCase()]) {
-      return knownContracts[address.toLowerCase()];
-    }
-    
-    // In a production app, you would query a smart contract registry or API
-    // For now, we'll check if it's a reported scam in our own contract
     try {
-      const isScam = await contractService.isScamAddress(address);
-      if (isScam) {
-        return "Reported Scam Contract";
+      if (!ethers.isAddress(address)) {
+        throw new Error('Invalid address format');
       }
+
+      // Use memoized network info
+      if (isMonadNetwork) {
+        try {
+          const isScam = await contractService.isScamAddress(address);
+          if (isScam) return "Reported Scam Contract";
+          return "Monad Contract";
+        } catch (err) {
+          console.error("Error checking Monad scam status:", err);
+          return "Unknown Monad Contract";
+        }
+      }
+
+      // Ethereum network handling using memoized contracts
+      return knownContracts[address.toLowerCase()] || "Unknown Contract";
     } catch (err) {
-      console.error("Error checking scam status:", err);
+      console.error("Error in getContractName:", err);
+      return "Unknown Contract";
     }
-    
-    return "Unknown Contract";
   };
 
-  // Get risk score for an address
+  // Get risk score with network awareness
   const getRiskScore = async (address: string): Promise<number> => {
     try {
-      // First check our own contract's scam score
+      if (!ethers.isAddress(address)) {
+        throw new Error('Invalid address format');
+      }
+
       const contractScore = await contractService.getScamScore(address);
-      if (contractScore > 0) {
-        return contractScore;
+      if (contractScore > 0) return contractScore;
+
+      if (isMonadNetwork) {
+        if (address.toLowerCase().startsWith('0xdead')) return 85;
+        return Math.floor(Math.random() * 30) + 10;
       }
-      
-      // If no score in our contract, use heuristics based on address characteristics
-      // (In a production app, you would use a real threat intelligence API)
+
       if (address.includes('DEAD') || address.includes('0000')) {
-        return Math.floor(Math.random() * 20) + 60; // Higher risk for suspicious patterns
+        return Math.floor(Math.random() * 20) + 60;
       }
-      
-      // Known trusted contracts get low scores
-      if (knownContracts[address.toLowerCase()]) {
-        return Math.floor(Math.random() * 10) + 1; // 1-10 risk score
-      }
-      
-      // Default moderate risk for unknown contracts
-      return Math.floor(Math.random() * 30) + 15;
+
+      return knownContracts[address.toLowerCase()] 
+        ? Math.floor(Math.random() * 10) + 1 
+        : Math.floor(Math.random() * 30) + 15;
     } catch (err) {
       console.error("Error getting risk score:", err);
-      return 50; // Default to moderate risk on error
+      return 50;
     }
   };
 
@@ -168,7 +294,7 @@ const ThreatMonitor: React.FC<ThreatMonitorProps> = ({ threatLevel }) => {
             let contractAddress = '';
             
             if (useKnownContract) {
-              const knownAddresses = Object.keys(knownContracts);
+              const knownAddresses = Object.keys(CONTRACT_ADDRESSES);
               contractAddress = knownAddresses[Math.floor(Math.random() * knownAddresses.length)];
             } else {
               contractAddress = `0x${Math.random().toString(16).substring(2, 42)}`;
@@ -204,13 +330,24 @@ const ThreatMonitor: React.FC<ThreatMonitorProps> = ({ threatLevel }) => {
     return () => clearInterval(interval);
   }, [walletConnector.address]);
 
+  // Generate a valid Ethereum address
+  const generateValidAddress = (prefix: string = '0x'): string => {
+    const chars = '0123456789abcdef';
+    const length = 40; // 20 bytes = 40 hex chars
+    let result = prefix;
+    for (let i = prefix.length; i < 42; i++) {
+      result += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return result;
+  };
+
   // Add new scan when threat level changes to danger
   useEffect(() => {
     if (threatLevel === 'danger') {
       const scanDangerContract = async () => {
         try {
-          // Generate a malicious-looking address
-          const dangerAddress = '0xDEADBEEF01234567ABCDEF123456789MALICIOUS';
+          // Generate a valid malicious-looking address
+          const dangerAddress = generateValidAddress('0xdead');
           
           // Get risk score (will be high due to our heuristics)
           const riskScore = await getRiskScore(dangerAddress);
@@ -218,7 +355,7 @@ const ThreatMonitor: React.FC<ThreatMonitorProps> = ({ threatLevel }) => {
           const dangerScan: ScanResult = {
             id: Date.now(),
             contract: dangerAddress,
-            name: 'FakeAirdrop Contract',
+            name: 'Suspicious Contract',
             status: 'danger',
             timestamp: 'Just now',
             riskScore
@@ -237,22 +374,104 @@ const ThreatMonitor: React.FC<ThreatMonitorProps> = ({ threatLevel }) => {
     }
   }, [threatLevel]);
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'safe': return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'warning': return <AlertTriangle className="h-4 w-4 text-yellow-500" />;
-      case 'danger': return <AlertTriangle className="h-4 w-4 text-red-500" />;
-      default: return <Activity className="h-4 w-4 text-gray-500" />;
-    }
-  };
+  // Initialize monitor and load network info
+  useEffect(() => {
+    const initializeMonitor = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'safe': return 'text-green-400 bg-green-500/20 border-green-500/30';
-      case 'warning': return 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30';
-      case 'danger': return 'text-red-400 bg-red-500/20 border-red-500/30';
-      default: return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
-    }
+        if (!walletConnector.provider) {
+          setError('Wallet not connected');
+          return;
+        }
+
+        // Get network information
+        const network = await walletConnector.provider.getNetwork();
+        const networkConfig = NETWORK_CONFIGS[Number(network.chainId)] || {
+          name: 'Unknown Network',
+          chainId: Number(network.chainId),
+          ensSupported: false
+        };
+        setNetworkInfo(networkConfig);
+
+        // Constants for different networks
+        const addresses = {
+          monad: {
+            token: '0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8b',
+            vitalik: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+            uniswap: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45'
+          },
+          ethereum: {
+            token: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984', // UNI
+            vitalik: '0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045',
+            uniswap: '0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D'
+          }
+        };
+
+        const isMonadNetwork = [10143, 131914, 1024].includes(networkConfig.chainId);
+        
+        // Initialize addresses and names based on network
+        let vitalikAddress = addresses.monad.vitalik; // Default fallback
+        let vitalikName = isMonadNetwork ? 'Vitalik Address' : 'vitalik.eth';
+        let tokenAddress = isMonadNetwork ? addresses.monad.token : addresses.ethereum.token;
+        let tokenName = isMonadNetwork ? 'Monad Token' : 'Uniswap Token';
+
+        // Only attempt ENS resolution on supported networks
+        if (networkConfig.ensSupported) {
+          try {
+            const resolved = await walletConnector.provider.resolveName('vitalik.eth');
+            if (resolved) {
+              vitalikAddress = resolved;
+              vitalikName = 'vitalik.eth';
+            }
+          } catch (e) {
+            console.warn('ENS resolution failed, using fallback address:', e);
+            // Keep the fallback address and name
+          }
+        }
+
+        // Get risk scores
+        const tokenRisk = await getRiskScore(tokenAddress);
+        const vitalikRisk = await getRiskScore(vitalikAddress);
+
+        // Create sample scans with proper network awareness
+        const sampleScans: ScanResult[] = [
+          {
+            id: 1,
+            contract: tokenAddress,
+            name: tokenName,
+            status: tokenRisk > 70 ? 'danger' : tokenRisk > 30 ? 'warning' : 'safe',
+            timestamp: new Date().toISOString(),
+            riskScore: tokenRisk
+          },
+          {
+            id: 2,
+            contract: vitalikAddress,
+            name: vitalikName,
+            status: vitalikRisk > 70 ? 'danger' : vitalikRisk > 30 ? 'warning' : 'safe',
+            timestamp: new Date().toISOString(),
+            riskScore: vitalikRisk
+          }
+        ];
+
+        setRecentScans(sampleScans);
+        setIsLoading(false);
+      } catch (error: any) {
+        console.error('Monitor initialization failed:', error);
+        setError(error.message);
+        setIsLoading(false);
+      }
+    };
+
+    initializeMonitor();
+    const interval = setInterval(initializeMonitor, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+  // Capitalize first letter of status
+  const formatStatus = (status: string) => {
+    return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
   // Enhanced scanning detection
@@ -269,72 +488,65 @@ const ThreatMonitor: React.FC<ThreatMonitorProps> = ({ threatLevel }) => {
   return (
     <Card className="bg-black/20 backdrop-blur-lg border-white/10">
       <CardHeader>
-        <CardTitle className="flex items-center space-x-2 text-white">
-          <Shield className="h-5 w-5 text-cyan-400" />
-          <span>Real-Time Threat Monitor</span>
-          <div className="flex-1"></div>
-          <Badge className={`${isScanning ? 'animate-pulse' : ''} bg-cyan-500/20 text-cyan-400 border-cyan-500/30`}>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Shield className="h-5 w-5 text-cyan-400" />
+            <CardTitle className="text-white">Real-Time Threat Monitor</CardTitle>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Badge 
+              variant="outline" 
+              className={networkInfo?.ensSupported ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}
+            >
+              {networkInfo?.name || 'Unknown Network'}
+            </Badge>
             {isScanning ? (
-              <>
-                <Zap className="h-3 w-3 mr-1" />
-                Scanning...
-              </>
+              <Badge className="bg-cyan-500/20 text-cyan-400">
+                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                Scanning
+              </Badge>
             ) : (
-              'AI Active'
+              <Badge className="bg-green-500/20 text-green-400">
+                <Activity className="h-3 w-3 mr-1" />
+                AI Active
+              </Badge>
             )}
-          </Badge>
-        </CardTitle>
+          </div>
+        </div>
       </CardHeader>
+
       <CardContent>
-        {isLoading ? (
-          <div className="flex items-center justify-center p-6">
-            <Loader2 className="h-6 w-6 text-cyan-400 animate-spin mr-2" />
-            <p className="text-gray-400">Initializing security scanner...</p>
+        {error ? (
+          <div className="p-4 rounded-md bg-red-500/20 border border-red-500/30">
+            <p className="text-red-400 flex items-center">
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              {error}
+            </p>
           </div>
-        ) : error ? (
-          <div className="p-4 bg-red-500/20 border border-red-500/30 rounded-md">
-            <p className="text-red-400">{error}</p>
-          </div>
-        ) : !walletConnector.address ? (
-          <div className="text-center p-6">
-            <p className="text-gray-400">Connect your wallet to activate real-time threat monitoring</p>
-          </div>
-        ) : recentScans.length === 0 ? (
-          <div className="text-center py-8 text-gray-400">
-            <Activity className="h-8 w-8 mx-auto mb-2 opacity-50" />
-            <p>No recent scans</p>
+        ) : isLoading ? (
+          <div className="flex items-center justify-center p-8">
+            <Loader2 className="h-8 w-8 text-cyan-400 animate-spin" />
           </div>
         ) : (
           <div className="space-y-4">
             {recentScans.map((scan) => (
               <div 
                 key={scan.id}
-                className={`flex items-center justify-between p-4 rounded-lg border transition-all duration-200 ${
-                  scan.status === 'danger' 
-                    ? 'bg-red-500/10 border-red-500/30 animate-pulse' 
-                    : scan.status === 'warning'
-                    ? 'bg-yellow-500/10 border-yellow-500/30'
-                    : 'bg-white/5 border-white/10 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center space-x-3">
-                  {getStatusIcon(scan.status)}
+                className="p-4 rounded-md bg-white/5 border border-white/10 flex items-center justify-between"
+              >                <div className="flex items-center space-x-4">
+                  {STATUS_ICONS[scan.status as keyof typeof STATUS_ICONS]("h-5 w-5 text-green-400")}
                   <div>
-                    <div className="text-white font-medium">{scan.name}</div>
-                    <div className="text-sm text-gray-400 font-mono">
-                      {shortenAddress(scan.contract)}
-                    </div>
+                    <p className="text-white font-medium">{scan.name}</p>
+                    <p className="text-sm text-gray-400">{shortenAddress(scan.contract)}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-3">
-                  <div className="text-right">
-                    <div className="text-sm text-gray-400">{scan.timestamp}</div>
-                    <div className={`text-xs ${scan.riskScore > 50 ? 'text-red-400' : scan.riskScore > 20 ? 'text-yellow-400' : 'text-green-400'}`}>
-                      Risk: {scan.riskScore}%
-                    </div>
-                  </div>
-                  <Badge className={getStatusColor(scan.status)}>
-                    {scan.status.toUpperCase()}
+                <div className="flex items-center space-x-2">
+                  <Badge className={STATUS_COLORS[scan.status as keyof typeof STATUS_COLORS]}>
+                    {formatStatus(scan.status)}
+                  </Badge>
+                  <Badge variant="outline" className="text-cyan-400">
+                    <Zap className="h-3 w-3 mr-1" />
+                    {scan.riskScore}% Risk
                   </Badge>
                 </div>
               </div>
