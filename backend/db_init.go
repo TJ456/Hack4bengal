@@ -10,7 +10,13 @@ import (
 
 // InitializeDatabase sets up the database schema and creates any required tables
 func InitializeDatabase(db *gorm.DB) error {
-	log.Println("Running database migrations...")	// Auto migrate all models
+	log.Println("Running database migrations...")	// Check if tables exist first
+	if err := db.Migrator().DropTable("transactions"); err != nil {
+		// Ignore error if table doesn't exist
+		log.Printf("Note: Could not drop transactions table (might not exist): %v", err)
+	}
+
+	// Auto migrate all models
 	err := db.AutoMigrate(
 		&models.Transaction{},
 		&models.Report{},
@@ -23,6 +29,12 @@ func InitializeDatabase(db *gorm.DB) error {
 	if err != nil {
 		log.Printf("Database migration failed: %v", err)
 		return err
+	}
+
+	// Ensure indexes are created properly
+	if err := db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS "uni_transactions_tx_hash" ON "transactions"("tx_hash")`).Error; err != nil {
+		log.Printf("Warning: Failed to create transaction hash index: %v", err)
+		// Don't return error since AutoMigrate should have handled this
 	}
 
 	log.Println("Database migrations completed successfully")

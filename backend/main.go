@@ -6,6 +6,11 @@ import (
 	"Wallet/backend/services"
 	"fmt"
 	"log"
+	"os"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func main() {
@@ -18,36 +23,73 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Initialize database
+	// Initialize database connection with retries
 	log.Println("Connecting to database...")
-	db, err := config.InitDB(cfg)
-	if err != nil {
-		log.Fatalf("Failed to initialize database: %v", err)
+	var db *gorm.DB
+	maxRetries := 5
+	retryDelay := time.Second * 3
+
+	for i := 0; i < maxRetries; i++ {
+		db, err = config.InitDB(cfg)
+		if err == nil {
+			break
+		}
+		if i < maxRetries-1 {
+			log.Printf("Failed to connect to database (attempt %d/%d): %v", i+1, maxRetries, err)
+			time.Sleep(retryDelay)
+			continue
+		}
+		log.Fatalf("Failed to initialize database after %d attempts: %v", maxRetries, err)
 	}
 
-	// Run database migrations and setup
-	log.Println("Setting up database schema...")
-	if err := InitializeDatabase(db); err != nil {
-		log.Fatalf("Failed to initialize database schema: %v", err)
+	// Ensure we can actually use the database
+	if err := config.EnsureDatabaseConnection(db); err != nil {
+		log.Fatalf("Database connection validation failed: %v", err)
 	}
+
+	// Validate database schema
+	log.Println("Validating database schema...")
+	if err := config.InitializeDatabase(db); err != nil {
+		log.Printf("Warning: Database schema validation failed: %v", err)
+		log.Println("Continuing anyway - some features may not work correctly")
+	} else {
+		log.Println("Database schema validation successful")
+	}
+
 	// Initialize Telegram service
 	log.Println("Initializing Telegram bot service...")
 	telegramService := services.NewTelegramService(cfg.TelegramToken, db)
 
 	// Set Telegram webhook URL if in production
 	if cfg.Environment == "production" {
-		webhookURL := "https://api.unhackablewallet.com/telegram/webhook"
+		webhookURL := cfg.BaseURL + "/telegram/webhook"
 		if err := telegramService.SetWebhook(webhookURL); err != nil {
 			log.Printf("Warning: Failed to set Telegram webhook: %v", err)
 		}
 	} else {
-		log.Println("Telegram webhooks not set in development mode. Use a tunnel like ngrok for local testing.")
+		log.Println("Telegram webhooks not set in development mode")
 	}
+
 	// Setup router with services
 	log.Println("Setting up API routes...")
 	r := routes.SetupMainRouter(db, telegramService)
 
-	// Print startup banner
+	// Get port from environment or use default
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	// Set gin mode
+	if cfg.Environment == "production" {
+		gin.SetMode(gin.ReleaseMode)
+	}
+
+	// Start server
+	log.Printf("Server starting on port %s...", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatalf("Failed to start server: %v", err)
+	}
 	fmt.Println(`
     __        __    _ _      _            _____
     \ \      / /_ _| | | ___| |_   ___   |  ___|_ _ ___ ___

@@ -109,6 +109,42 @@ func (s *AIService) AnalyzeTransaction(tx models.Transaction) (float64, error) {
 	return riskScore, nil
 }
 
+// AnalyzeTransactionEnhanced performs enhanced analysis for high-value transactions
+func (s *AIService) AnalyzeTransactionEnhanced(tx models.Transaction) (float64, error) {
+	// For enhanced analysis, we'll use both our base model and additional checks
+
+	// First get base risk score
+	baseRisk, err := s.AnalyzeTransaction(tx)
+	if err != nil {
+		return 0, fmt.Errorf("base analysis failed: %w", err)
+	}
+
+	// For high-value transactions, we do additional analysis
+	enhancedRisk := baseRisk
+
+	// Get historical analytics if available
+	if s.analyticsService != nil {
+		// Check if destination has been involved in scams
+		scamHistory, err := s.analyticsService.GetAddressScamHistory(tx.ToAddress)
+		if err == nil && scamHistory.ScamCount > 0 {
+			enhancedRisk += 0.3 // Significant increase if destination has scam history
+		}
+
+		// Check for unusual transaction patterns
+		isUnusual, err := s.analyticsService.IsUnusualTransaction(tx)
+		if err == nil && isUnusual {
+			enhancedRisk += 0.2 // Increase risk for unusual patterns
+		}
+	}
+
+	// Cap the risk score at 1.0
+	if enhancedRisk > 1.0 {
+		enhancedRisk = 1.0
+	}
+
+	return enhancedRisk, nil
+}
+
 // GetRiskExplanation provides a human-readable explanation for a risk score
 func (s *AIService) GetRiskExplanation(risk float64, tx models.Transaction) string {
 	if risk > 0.7 {

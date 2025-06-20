@@ -6,4 +6,4 @@
 export PORT=${PORT:-8080}
 
 # Run the application
-exec /app/out
+exec ./server

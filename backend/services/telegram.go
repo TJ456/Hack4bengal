@@ -307,3 +307,32 @@ func (ts *TelegramService) SetWebhook(webhookURL string) error {
 	log.Printf("Successfully set webhook to %s", webhookURL)
 	return nil
 }
+
+// NotifyAdmin sends a message to the admin chat
+func (ts *TelegramService) NotifyAdmin(text string) error {
+	// Get admin chat ID from environment variable
+	adminChatID := ts.getAdminChatID()
+	if adminChatID == 0 {
+		return fmt.Errorf("admin chat ID not configured")
+	}
+
+	return ts.SendMessage(adminChatID, text)
+}
+
+// getAdminChatID retrieves the admin chat ID from stored configuration
+func (ts *TelegramService) getAdminChatID() int64 {
+	var config models.Config
+	err := ts.DB.Where("key = ?", "telegram_admin_chat").First(&config).Error
+	if err != nil {
+		log.Printf("Warning: Failed to get admin chat ID from database: %v", err)
+		return 0
+	}
+
+	chatID, err := strconv.ParseInt(config.Value, 10, 64)
+	if err != nil {
+		log.Printf("Warning: Invalid admin chat ID in database: %v", err)
+		return 0
+	}
+
+	return chatID
+}

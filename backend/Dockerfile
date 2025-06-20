@@ -1,43 +1,65 @@
-# Use the official Go image as a builder - Alpine for smaller image
-FROM golang:1.24-alpine AS builder
+# Build stage
+FROM golang:1.24.2-bullseye AS builder
 
-# Install build tools
-RUN apk add --no-cache git build-base
+# Set up proper Go path for your module
+WORKDIR /go/src/Wallet
 
+# Copy backend code to the correct module path
+COPY . backend/
+
+# Set working directory to backend
+WORKDIR /go/src/Wallet/backend
+
+# Download dependencies
+RUN go mod download && \
+    go mod verify
+
+# Show debug information
+RUN echo "=== Directory Contents ===" && \
+    ls -la && \
+    echo "=== Go Environment ===" && \
+    go env && \
+    echo "=== Module Info ===" && \
+    go list -m all
+
+# Build with verbose output
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -v -o server .
+
+# Final stage
+FROM debian:bullseye-slim
+
+# Install SSL certificates and timezone data
+RUN apt-get update && \
+    apt-get install -y ca-certificates tzdata && \
+    update-ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# Create non-root user and app directory
+RUN useradd -m -u 1001 appuser && \
+    mkdir -p /app && \
+    chown appuser:appuser /app
+
+# Set up app directory
 WORKDIR /app
 
-# Copy and download dependencies
-COPY go.mod go.sum ./
-RUN go mod tidy && \
-    go get github.com/civicteam/gateway-go-client && \
-    go mod download
+# ✅ FIXED: Correct build paths
+COPY --from=builder /go/src/Wallet/backend/server ./  
+COPY --from=builder /go/src/Wallet/backend/start.sh ./  
 
-# Copy the entire backend directory
-COPY . .
+# Set permissions
+RUN chmod +x server start.sh && \
+    chown appuser:appuser server start.sh
 
-# Build without cache mounting (for compatibility with various build systems)
-ENV CGO_ENABLED=0
-RUN go mod tidy && go build -ldflags="-s -w" -o out .
+# Use non-root user
+USER appuser
 
-# Use a smaller image for the final stage
-FROM alpine:latest
+# Set environment variables
+ENV GO_ENV=production \
+    PORT=8080 \
+    GIN_MODE=release
 
-WORKDIR /app
-# Install CA certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
-
-# Copy the binary from the builder stage
-COPY --from=builder /app/out /app/out
-
-# Copy any configuration files and the start script
-COPY --from=builder /app/.env* /app/
-COPY --from=builder /app/start.sh /app/start.sh
-
-# Make the start script executable
-RUN chmod +x /app/start.sh
-
-# Expose the port your application runs on
+# Expose port
 EXPOSE 8080
 
-# Run the binary via the start script
-CMD ["/app/start.sh"]
+# Use start script
+CMD ["./start.sh"]

@@ -1,10 +1,9 @@
 package handlers
 
 import (
-	"Wallet/backend/models"
 	"Wallet/backend/services"
-	"encoding/json"
 	"net/http"
+	"time"
 	"github.com/gin-gonic/gin"
 )
 
@@ -83,8 +82,8 @@ func (h *CivicAuthHandler) GetAuthStatusHandler(c *gin.Context) {
 		return
 	}
 
-	var session models.CivicAuthSession
-	if err := h.civicService.db.Where("user_address = ?", userAddress).First(&session).Error; err != nil {
+	session, err := h.civicService.GetUserSession(userAddress)
+	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "No active session found"})
 		return
 	}
@@ -108,10 +107,8 @@ func (h *CivicAuthHandler) RequireCivicAuth() gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-
-		var session models.CivicAuthSession
-		if err := h.civicService.db.Where("user_address = ? AND status = ? AND token_expiry > NOW()", 
-			userAddress, "verified").First(&session).Error; err != nil {
+		session, err := h.civicService.GetUserSession(userAddress)
+		if err != nil || session.Status != "verified" || session.TokenExpiry.Before(time.Now()) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Valid Civic authentication required"})
 			c.Abort()
 			return
@@ -119,6 +116,27 @@ func (h *CivicAuthHandler) RequireCivicAuth() gin.HandlerFunc {
 
 		// Add session to context for downstream handlers
 		c.Set("civicSession", session)
+		c.Next()
+	}
+}
+
+// RequireValidAuth middleware ensures the Civic authentication is valid and not expired
+func (h *CivicAuthHandler) RequireValidAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userAddress := c.GetHeader("X-User-Address")
+		if userAddress == "" {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "X-User-Address header required"})
+			c.Abort()
+			return
+		}
+
+		session, err := h.civicService.GetUserSession(userAddress)
+		if err != nil || session.Status != "verified" || session.TokenExpiry.Before(time.Now()) {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Valid Civic authentication required"})
+			c.Abort()
+			return
+		}
+
 		c.Next()
 	}
 }

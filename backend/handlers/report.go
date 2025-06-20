@@ -3,6 +3,7 @@ package handlers
 import (
 	"Wallet/backend/models"
 	"Wallet/backend/services"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -81,6 +82,74 @@ func (h *ReportHandler) CreateReport(c *gin.Context) {
 		"id":      report.ID,
 		"message": "Report submitted successfully",
 		"txHash":  txHash,
+	})
+}
+
+// CreateCriticalReport creates a high-priority scam report with immediate blockchain submission
+func (h *ReportHandler) CreateCriticalReport(c *gin.Context) {
+	var report models.Report
+	if err := c.ShouldBindJSON(&report); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid report format"})
+		return
+	}
+
+	// Get reporter address from Web3 auth middleware
+	address, exists := c.Get("address")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Not authenticated"})
+		return
+	}
+
+	// Set critical report specific fields
+	report.ReporterAddress = address.(string)
+	report.CreatedAt = time.Now()
+	report.Status = "critical"
+	report.Priority = "high"
+	report.RequiresImmediate = true
+
+	// Save report to database first
+	if err := h.db.Create(&report).Error; err != nil {
+		log.Printf("Failed to save critical report: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save report"})
+		return
+	}
+
+	// Submit to blockchain immediately (non-critical reports might be batched)
+	if h.blockchainService != nil {
+		go func() {
+			txHash, err := h.blockchainService.SubmitReport(report)
+			if err != nil {
+				log.Printf("Failed to submit critical report to blockchain: %v", err)
+				// Update report status in database
+				h.db.Model(&report).Updates(map[string]interface{}{
+					"status": "blockchain_failed",
+					"error":  err.Error(),
+				})
+				// Notify admin of blockchain submission failure
+				h.telegramService.NotifyAdmin(fmt.Sprintf("❌ Critical Report Blockchain Submission Failed\nReport ID: %d\nError: %v",
+					report.ID, err))
+				return
+			}
+
+			// Update report with transaction hash
+			h.db.Model(&report).Updates(map[string]interface{}{
+				"blockchain_tx": txHash,
+				"status":       "blockchain_pending",
+			})
+
+			// Notify admin of successful submission
+			h.telegramService.NotifyAdmin(fmt.Sprintf("🚨 Critical Report Submitted\nReport ID: %d\nTx Hash: %s",
+				report.ID, txHash))
+		}()
+	}
+
+	// Notify admin immediately
+	go h.telegramService.NotifyAdmin(fmt.Sprintf("🚨 New Critical Report\nScammer: %s\nAmount: %v\nType: %s",
+		report.ScammerAddress, report.Amount, report.ScamType))
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Critical report submitted",
+		"report":  report,
 	})
 }
 

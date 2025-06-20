@@ -1,15 +1,19 @@
 package services
 
 import (
+	"Wallet/backend/models"
 	"context"
 	"fmt"
 	"math/big"
 	"os"
 	"time"
 
+	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/ethclient"
+
 )
 
 // BlockchainService provides utilities for interacting with blockchain
@@ -136,4 +140,55 @@ func (s *BlockchainService) GetWalletBalance(address string) (*big.Float, error)
 	ethValue := new(big.Float).Quo(fbalance, big.NewFloat(1e18))
 	
 	return ethValue, nil
+}
+
+// SubmitReport submits a scam report to the blockchain
+func (s *BlockchainService) SubmitReport(report models.Report) (string, error) {
+	// Check if the transaction needs immediate submission
+	if !report.RequiresImmediate {
+		// Queue for batch submission
+		return "", fmt.Errorf("batch submission not implemented yet")
+	}
+
+	// Get the reporter's wallet nonce
+	auth, err := s.prepareAuth(report.ReporterAddress)
+	if err != nil {
+		return "", fmt.Errorf("failed to prepare transaction auth: %w", err)
+	}
+
+	// Format the report data for the smart contract
+	reportData := struct {
+		ReportedAddress string
+		ScamType        string
+		Amount          string
+		Evidence        string
+		Severity        uint8
+	}{
+		ReportedAddress: report.ReportedAddress,
+		ScamType:       report.ScamType,
+		Amount:         fmt.Sprintf("%.2f", report.Amount),
+		Evidence:       report.Evidence,
+		Severity:       uint8(report.Severity),
+	}
+
+	// Submit the transaction
+	// Note: In a real implementation, this would use the actual smart contract methods
+	tx, err := s.submitToContract(auth, reportData)
+	if err != nil {
+		return "", fmt.Errorf("failed to submit report to blockchain: %w", err)
+	}
+
+	return tx.Hash().Hex(), nil
+}
+
+// Helper method to prepare transaction auth
+func (s *BlockchainService) prepareAuth(reporterAddress string) (*bind.TransactOpts, error) {
+	// Note: In a real implementation, this would handle the wallet signing process
+	return nil, fmt.Errorf("wallet signing not implemented")
+}
+
+// Helper method to submit to the smart contract
+func (s *BlockchainService) submitToContract(auth *bind.TransactOpts, data interface{}) (*types.Transaction, error) {
+	// Note: In a real implementation, this would use the actual smart contract methods
+	return nil, fmt.Errorf("smart contract submission not implemented")
 }

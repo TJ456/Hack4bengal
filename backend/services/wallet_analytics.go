@@ -286,3 +286,76 @@ func (s *WalletAnalyticsService) GetRiskPredictionInput(analytics *models.Wallet
 
 	return input
 }
+
+// ScamHistory represents an address's history with scam reports
+type ScamHistory struct {
+	ScamCount          int
+	TotalScamAmount    float64
+	LastScamReportTime time.Time
+}
+
+// GetAddressScamHistory retrieves the scam history for an address
+func (s *WalletAnalyticsService) GetAddressScamHistory(address string) (*ScamHistory, error) {
+	var history ScamHistory
+
+	// Query scam reports for this address
+	var reports []models.Report
+	err := s.db.Where("scammer_address = ? AND status = ?", address, "confirmed").
+		Order("created_at desc").
+		Find(&reports).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to query scam reports: %w", err)
+	}
+
+	history.ScamCount = len(reports)
+	if history.ScamCount > 0 {
+		history.LastScamReportTime = reports[0].CreatedAt
+		for _, report := range reports {
+			history.TotalScamAmount += report.Amount
+		}
+	}
+
+	return &history, nil
+}
+
+// IsUnusualTransaction checks if a transaction shows unusual patterns
+func (s *WalletAnalyticsService) IsUnusualTransaction(tx models.Transaction) (bool, error) {
+	// Get recent transactions for the sender
+	var recentTxs []models.Transaction
+	err := s.db.Where("from_address = ? AND created_at > ?",
+		tx.FromAddress, time.Now().Add(-24*time.Hour)).
+		Order("created_at desc").
+		Find(&recentTxs).Error
+	if err != nil {
+		return false, fmt.Errorf("failed to query recent transactions: %w", err)
+	}
+
+	// Calculate average transaction value
+	var totalValue float64
+	for _, rtx := range recentTxs {
+		totalValue += rtx.Value
+	}
+
+	if len(recentTxs) == 0 {
+		// First transaction in 24 hours is considered unusual
+		return true, nil
+	}
+
+	avgValue := totalValue / float64(len(recentTxs))
+
+	// Check if this transaction is significantly larger than average
+	if tx.Value > avgValue*3 {
+		return true, nil
+	}
+
+	// Check if this is a new recipient
+	for _, rtx := range recentTxs {
+		if rtx.ToAddress == tx.ToAddress {
+			// Not a new recipient
+			return false, nil
+		}
+	}
+
+	// New recipient is considered unusual
+	return true, nil
+}

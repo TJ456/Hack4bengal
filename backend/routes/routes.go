@@ -40,6 +40,13 @@ func SetupMainRouter(db *gorm.DB, telegramService *services.TelegramService) *gi
 		ethRpcUrl = "https://eth-sepolia.g.alchemy.com/v2/your-api-key" // Default value
 	}
 
+	// Initialize blockchain service
+	blockchainService, err := services.NewBlockchainService()
+	if err != nil {
+		log.Printf("Warning: Failed to initialize blockchain service: %v", err)
+		// Continue with nil blockchain service, handlers should handle this case
+	}
+
 	analyticsService, err := services.NewWalletAnalyticsService(db, ethRpcUrl)
 	if err != nil {
 		log.Printf("Warning: Failed to initialize analytics service: %v", err)

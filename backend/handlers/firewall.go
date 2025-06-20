@@ -3,6 +3,7 @@ package handlers
 import (
 	"Wallet/backend/models"
 	"Wallet/backend/services"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -50,45 +51,64 @@ func (h *FirewallHandler) AnalyzeTransaction(c *gin.Context) {
 		status = "suspicious"
 	}
 
-	// Save transaction to database
+	// Save transaction with risk score
 	tx.Risk = risk
-
-	// Send Telegram notification for suspicious or blocked transactions
-	if status != "safe" {
-		// Create a security alert
-		description := "Suspicious transaction to " + tx.ToAddress
-		if tx.Metadata != "" {
-			description += " - " + tx.Metadata
-		}
-
-		alert := &models.SecurityAlert{
-			WalletID:  tx.FromAddress,
-			Type:      "suspicious_transaction",
-			Severity:  status,
-			Details:   description,
-			Timestamp: time.Now().Unix(),
-			Status:    "pending",
-		}
-
-		// Try to send Telegram notification (don't block if it fails)
-		go func() {
-			err := h.telegramService.NotifySecurityAlert(tx.FromAddress, alert)
-			if err != nil {
-				// Log the error but continue processing
-				log.Printf("Failed to send Telegram notification: %v", err)
-			}
-		}()
-	}
-
 	tx.Status = status
+	tx.Timestamp = time.Now()
+
 	if err := h.db.Create(&tx).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save transaction"})
-		return
+		log.Printf("Failed to save transaction analysis: %v", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status": status,
-		"risk":   risk,
+		"status":    status,
+		"riskScore": risk,
+		"analysis":  tx,
+	})
+}
+
+// AnalyzeHighValueTransaction analyzes a high-value transaction for additional security
+func (h *FirewallHandler) AnalyzeHighValueTransaction(c *gin.Context) {
+	var tx models.Transaction
+	if err := c.ShouldBindJSON(&tx); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
+		return
+	}
+
+	// Call AI service to analyze high-value transaction with enhanced scrutiny
+	risk, err := h.aiService.AnalyzeTransactionEnhanced(tx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to analyze high-value transaction"})
+		return
+	}
+
+	// For high-value transactions, we use stricter thresholds
+	status := "safe"
+	if risk > 0.5 { // Lower threshold for high-value transactions
+		status = "blocked"
+		// Notify admin via Telegram for blocked high-value transactions
+		h.telegramService.NotifyAdmin(fmt.Sprintf("🚨 HIGH VALUE TX BLOCKED\nAmount: %v %s\nTo: %s\nRisk Score: %.2f",
+			tx.Value, tx.Currency, tx.ToAddress, risk))
+	} else if risk > 0.2 { // Lower threshold for suspicious flag
+		status = "suspicious"
+		// Notify admin of suspicious high-value transaction
+		h.telegramService.NotifyAdmin(fmt.Sprintf("⚠️ Suspicious High Value TX\nAmount: %v %s\nTo: %s\nRisk Score: %.2f",
+			tx.Value, tx.Currency, tx.ToAddress, risk))
+	}
+
+	// Save transaction with risk score
+	tx.Risk = risk
+	tx.Status = status
+	tx.Timestamp = time.Now()
+
+	if err := h.db.Create(&tx).Error; err != nil {
+		log.Printf("Failed to save high-value transaction analysis: %v", err)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"status":    status,
+		"riskScore": risk,
+		"analysis":  tx,
 	})
 }
 

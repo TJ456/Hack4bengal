@@ -17,6 +17,7 @@ type Config struct {
 	JWTSecret     string
 	Environment   string
 	TelegramToken string
+	BaseURL       string
 }
 
 // LoadConfig loads configuration from .env file and environment variables
@@ -31,7 +32,6 @@ func LoadConfig() (*Config, error) {
 	if serverPort == "" {
 		serverPort = getEnv("SERVER_PORT", "8080")
 	}
-
 	cfg := &Config{
 		ServerPort:    serverPort,
 		DatabaseURL:   getEnv("DATABASE_URL", "postgresql://Records_owner:npg_fELAr2DGw3TZ@ep-odd-shape-a4yij4cq-pooler.us-east-1.aws.neon.tech/Records?sslmode=require"),
@@ -39,6 +39,7 @@ func LoadConfig() (*Config, error) {
 		JWTSecret:     getEnv("JWT_SECRET", ""),
 		Environment:   getEnv("ENVIRONMENT", "production"),
 		TelegramToken: getEnv("TELEGRAM_TOKEN", ""),
+		BaseURL:       getEnv("BASE_URL", "https://api.unhackablewallet.com"),
 	}
 
 	// Validate configuration
