@@ -16,6 +16,8 @@ import TelegramCompanion from '@/components/TelegramCompanion';
 import TelegramSettings from '@/components/TelegramSettings';
 import WalletAnalytics from '@/components/WalletAnalytics';
 import GuardianManager from '@/components/GuardianManager';
+import { useCivicStore } from '@/stores/civicStore';
+import SimpleCivicAuth from '@/components/civic/SimpleCivicAuth';
 
 const Index = () => {
   const [walletConnected, setWalletConnected] = useState(false);
@@ -40,6 +42,7 @@ const Index = () => {
   const [showAIFeedback, setShowAIFeedback] = useState(false);
   const [lastAction, setLastAction] = useState<'vote' | 'report' | 'block' | 'scan'>('scan');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [civicClientId] = useState(import.meta.env.VITE_CIVIC_CLIENT_ID || "demo_client_id");
   
   const { toast } = useToast();
 
@@ -158,6 +161,26 @@ const Index = () => {
     });
   };
 
+  const handleCivicSuccess = (gatewayToken: string) => {
+    if (currentAddress) {
+      const store = useCivicStore.getState();
+      store.setGatewayToken(currentAddress, gatewayToken);
+      
+      toast({
+        title: "Identity Verified",
+        description: "Your wallet is now verified with Civic",
+      });
+    }
+  };
+
+  const handleCivicError = (error: Error) => {
+    toast({
+      title: "Verification Failed",
+      description: error.message,
+      variant: "destructive"
+    });
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
@@ -383,7 +406,12 @@ const Index = () => {
                   A minimum of {2} guardians must approve the recovery process.
                 </p>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-6">                <SimpleCivicAuth
+                  clientId={civicClientId}
+                  walletAddress={currentAddress}
+                  onSuccess={handleCivicSuccess}
+                  onError={handleCivicError}
+                />
                 <GuardianManager walletAddress={currentAddress} />
               </CardContent>
             </Card>
