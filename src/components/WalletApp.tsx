@@ -9,21 +9,23 @@ import {
   CardDescription,
   CardContent,
   CardFooter
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import walletConnector from '@/web3/wallet';
-import contractService from '@/web3/contract';
-import { shortenAddress, isValidAddress, formatEth } from '@/web3/utils';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { reportScam, voteOnProposal, sendTransaction } from '@/web3/contract';
-import TransactionForm from '@/components/TransactionForm';
-import WalletInfo from '@/components/WalletInfo';
-import { useToast } from '@/hooks/use-toast';
-import { Grid, Wallet, Send, Shield, Users } from 'lucide-react';
+} from '../components/ui/card';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Badge } from '../components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs';
+import { Grid, Wallet, Send, Shield, Users, Lock } from 'lucide-react';
+import { useToast } from '../hooks/use-toast';
+
+import walletConnector from '../web3/wallet';
+import contractService from '../web3/contract';
+import { reportScam, voteOnProposal, sendTransaction } from '../web3/contract';
+import { shortenAddress, isValidAddress, formatEth } from '../web3/utils';
+import TransactionForm from './TransactionForm';
+import WalletInfo from './WalletInfo';
+import GuardianManager from './GuardianManager';
 
 interface WalletAppProps {
   onAddressChanged?: (address: string | null) => void;
@@ -47,7 +49,7 @@ const WalletApp: React.FC<WalletAppProps> = ({ onAddressChanged }) => {
   const [scamScore, setScamScore] = useState<number>(0);
 
   // New state for enhanced UI
-  const [activeView, setActiveView] = useState<'overview' | 'send' | 'report' | 'vote'>('overview');
+  const [activeView, setActiveView] = useState<'overview' | 'send' | 'report' | 'vote' | 'security'>('overview');
 
   const { toast } = useToast();
 
@@ -191,9 +193,8 @@ const WalletApp: React.FC<WalletAppProps> = ({ onAddressChanged }) => {
       setIsVoting(false);
     }
   };
-
-  // Legacy handler for form compatibility
-  const handleVote = (e: React.FormEvent) => {
+  // Legacy handler for form compatibility  
+  const handleVoteForm = (e: React.FormEvent) => {
     e.preventDefault();
     // This is handled by handleVoteSubmit buttons
   };
@@ -441,23 +442,26 @@ const WalletApp: React.FC<WalletAppProps> = ({ onAddressChanged }) => {
           {/* Navigation Tabs */}
           <Card>
             <CardContent className="pt-6">
-              <Tabs value={activeView} onValueChange={(value) => setActiveView(value as any)}>
-                <TabsList className="grid grid-cols-4 w-full">
-                  <TabsTrigger value="overview" className="flex items-center space-x-2">
+              <Tabs value={activeView} onValueChange={(v) => setActiveView(v as any)}>                <TabsList className="inline-flex w-full justify-center rounded-lg bg-muted p-1">
+                  <TabsTrigger value="overview" className="w-full items-center justify-center gap-2 rounded-md px-3 py-2">
                     <Grid className="h-4 w-4" />
-                    <span className="hidden sm:inline">Overview</span>
+                    <span>Overview</span>
                   </TabsTrigger>
-                  <TabsTrigger value="send" className="flex items-center space-x-2">
+                  <TabsTrigger value="send" className="w-full items-center justify-center gap-2 rounded-md px-3 py-2">
                     <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline">Send</span>
+                    <span>Send</span>
                   </TabsTrigger>
-                  <TabsTrigger value="report" className="flex items-center space-x-2">
+                  <TabsTrigger value="report" className="w-full items-center justify-center gap-2 rounded-md px-3 py-2">
                     <Shield className="h-4 w-4" />
-                    <span className="hidden sm:inline">Report</span>
+                    <span>Report</span>
                   </TabsTrigger>
-                  <TabsTrigger value="vote" className="flex items-center space-x-2">
+                  <TabsTrigger value="vote" className="w-full items-center justify-center gap-2 rounded-md px-3 py-2">
                     <Users className="h-4 w-4" />
-                    <span className="hidden sm:inline">Vote</span>
+                    <span>Vote</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="security" className="w-full items-center justify-center gap-2 rounded-md px-3 py-2">
+                    <Lock className="h-4 w-4" />
+                    <span>Security</span>
                   </TabsTrigger>
                 </TabsList>
 
@@ -607,7 +611,7 @@ const WalletApp: React.FC<WalletAppProps> = ({ onAddressChanged }) => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <form onSubmit={handleVote} className="space-y-4">
+                      <form onSubmit={handleVoteForm} className="space-y-4">
                         <div>
                           <Label htmlFor="proposal-id">Proposal ID</Label>
                           <Input
@@ -641,6 +645,53 @@ const WalletApp: React.FC<WalletAppProps> = ({ onAddressChanged }) => {
                     </CardContent>
                   </Card>
                 </TabsContent>
+
+                {/* Security Tab */}
+                <TabsContent value="security" className="mt-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    {/* Wallet Info */}
+                    <div className="lg:col-span-1">
+                      <WalletInfo
+                        showNetworkInfo={true}
+                        autoRefresh={true}
+                        className="h-fit"
+                      />
+                    </div>
+
+                    {/* Social Recovery Management */}
+                    <div className="lg:col-span-2">
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>Social Recovery</CardTitle>
+                          <CardDescription>
+                            Manage guardians and recovery settings for your wallet
+                          </CardDescription>
+                        </CardHeader>                      <CardContent className="p-6">
+                          <div className="space-y-6">
+                            <div className="flex items-center justify-between">
+                              <div className="space-y-1">
+                                <h4 className="text-sm font-medium">Active Guardians</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Manage your wallet recovery guardians
+                                </p>
+                              </div>
+                              <Button
+                                onClick={() => setActiveView('security')}
+                                size="sm"
+                                className="inline-flex items-center space-x-2"
+                              >
+                                <Lock className="h-4 w-4" />
+                                <span>Manage</span>
+                              </Button>
+                            </div>
+                            <GuardianManager walletAddress={address} />
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </div>
+                </TabsContent>
+
               </Tabs>
             </CardContent>
           </Card>

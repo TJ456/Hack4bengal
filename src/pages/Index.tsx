@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Shield, AlertTriangle, CheckCircle, Zap, Users, FileText, Settings, PieChart } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Zap, Users, FileText, Settings, PieChart, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import AILearningFeedback from '@/components/AILearningFeedback';
 import TelegramCompanion from '@/components/TelegramCompanion';
 import TelegramSettings from '@/components/TelegramSettings';
 import WalletAnalytics from '@/components/WalletAnalytics';
+import GuardianManager from '@/components/GuardianManager';
 
 const Index = () => {
   const [walletConnected, setWalletConnected] = useState(false);
@@ -198,6 +199,7 @@ const Index = () => {
               { id: 'analytics', label: 'Wallet Analytics', icon: PieChart },
               { id: 'dao', label: 'DAO Voting', icon: Users },
               { id: 'reports', label: 'Threat Reports', icon: FileText },
+              { id: 'recovery', label: 'Recovery', icon: Key },
               { id: 'settings', label: 'Settings', icon: Settings },
             ].map((item) => (
               <button
@@ -369,7 +371,25 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
-          )}          {activeTab === 'settings' && (
+          )}          {activeTab === 'recovery' && (
+            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Key className="h-5 w-5 text-cyan-400" />
+                  <span>Social Recovery Settings</span>
+                </CardTitle>
+                <p className="text-gray-400 mt-2">
+                  Set up trusted guardians who can help you recover your wallet if you lose access.
+                  A minimum of {2} guardians must approve the recovery process.
+                </p>
+              </CardHeader>
+              <CardContent>
+                <GuardianManager walletAddress={currentAddress} />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'settings' && (
             <div className="space-y-6">
               <Card className="bg-black/20 backdrop-blur-lg border-white/10">
                 <CardHeader>
@@ -405,6 +425,23 @@ const Index = () => {
               {/* Telegram Settings Integration */}
               <TelegramSettings walletAddress={currentAddress} />
             </div>
+          )}
+
+          {activeTab === 'recovery' && (
+            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white">Guardian Recovery Settings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <p className="text-gray-400 text-sm">
+                    Manage your Guardian recovery settings. Enable recovery options to enhance wallet security.
+                  </p>
+                  
+                  <GuardianManager walletAddress={currentAddress} />
+                </div>
+              </CardContent>
+            </Card>
           )}
         </main>
       </div>
