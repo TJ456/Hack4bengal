@@ -34,7 +34,7 @@ func LoadConfig() (*Config, error) {
 	}
 	cfg := &Config{
 		ServerPort:    serverPort,
-		DatabaseURL:   getEnv("DATABASE_URL", "postgresql://Records_owner:npg_fELAr2DGw3TZ@ep-odd-shape-a4yij4cq-pooler.us-east-1.aws.neon.tech/Records?sslmode=require"),
+		DatabaseURL:   getEnv("DATABASE_URL", "postgresql://neondb_owner:npg_ecZ8XOvH9dbp@ep-dark-snow-a1hb7o1k-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require"),
 		MLModelURL:    getEnv("ML_MODEL_URL", "https://ml-fraud-transaction-detection.onrender.com/predict"),
 		JWTSecret:     getEnv("JWT_SECRET", ""),
 		Environment:   getEnv("ENVIRONMENT", "production"),
