@@ -8,6 +8,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { AlertCircle, Shield, UserPlus, UserMinus, Clock, CheckCircle2, Loader2 } from 'lucide-react';
 import { ethers } from 'ethers';
 import socialRecoveryService from '@/web3/socialRecovery';
+import addresses from '@/web3/addresses.json';
 
 interface Guardian {
   address: string;
@@ -58,11 +59,9 @@ const GuardianManager: React.FC<{ walletAddress: string | null }> = ({ walletAdd
     } finally {
       setLoading(false);
     }
-  };
-
-  // Check if service is initialized and handle wallet changes
+  };  // Initialize service and load data when wallet is connected
   useEffect(() => {
-    const checkInitialization = async () => {
+    const initializeService = async () => {
       try {
         if (!walletAddress) {
           setError('Please connect your wallet first');
@@ -70,27 +69,30 @@ const GuardianManager: React.FC<{ walletAddress: string | null }> = ({ walletAdd
           return;
         }
 
-        const checkInterval = setInterval(async () => {
-          if (socialRecoveryService.isInitialized) {
-            clearInterval(checkInterval);
-            setInitialized(true);
-            setError(null);
-            // Load initial data
-            await loadGuardians();
-            await loadRecoveryRequests();
-          }
-        }, 1000);
-
-        // Clean up interval
-        return () => clearInterval(checkInterval);
+        setError(null);
+        setLoading(true);
+        
+        // Initialize service with contract address from addresses.json
+        if (!socialRecoveryService.isInitialized) {
+          await socialRecoveryService.initialize(addresses.socialRecoveryWallet);
+        }
+        
+        setInitialized(true);
+        
+        // Load initial data
+        await loadGuardians();
+        await loadRecoveryRequests();
+        
       } catch (err) {
         console.error('Initialization error:', err);
         setError('Failed to initialize social recovery service');
         setInitialized(false);
+      } finally {
+        setLoading(false);
       }
     };
 
-    checkInitialization();
+    initializeService();
   }, [walletAddress]);
 
   const handleAddGuardian = async (e: React.FormEvent) => {
