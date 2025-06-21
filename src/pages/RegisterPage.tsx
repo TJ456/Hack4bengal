@@ -309,18 +309,25 @@ const RegisterPage: React.FC = () => {
     setVerifyImage(null);
     setLoading(false);
     navigate('/');
-  };
-  const renderCamera = () => (
-    <div className="relative w-full max-w-md mx-auto">
-      <div className="relative overflow-hidden rounded-lg bg-gray-50 border-2 border-gray-200">
+  };  const renderCamera = () => (
+    <div className="relative w-full max-w-2xl mx-auto">
+      <div className="relative overflow-hidden rounded-xl bg-black/40 border border-white/20 shadow-lg backdrop-blur-sm">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-auto"
+          className="w-full h-[480px] object-cover"
         />
+        {/* Scanning animation */}
         <div className="absolute inset-0 pointer-events-none">
+          {/* Scanning line */}
+          <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-green-400 to-transparent opacity-75 animate-scanning-line"></div>
+          
+          {/* Dots overlay */}
+          <div className="absolute inset-0 bg-[radial-gradient(circle,_transparent_20%,_rgba(0,255,0,0.1)_20%)] bg-[length:10px_10px] animate-dots-fade"></div>
+          
+          {/* Corner markers */}
           <div className="absolute top-4 left-4 w-6 h-6 border-l-2 border-t-2 border-gray-400"></div>
           <div className="absolute top-4 right-4 w-6 h-6 border-r-2 border-t-2 border-gray-400"></div>
           <div className="absolute bottom-4 left-4 w-6 h-6 border-l-2 border-b-2 border-gray-400"></div>
@@ -329,25 +336,35 @@ const RegisterPage: React.FC = () => {
       </div>
       <canvas ref={canvasRef} className="hidden" />
     </div>
-  );
-  const renderCapturedImage = (imageSrc: string) => (
-    <div className="relative w-full max-w-md mx-auto">
-      <div className="relative overflow-hidden rounded-lg border-2 border-gray-200">
-        <img src={imageSrc} alt="Captured" className="w-full h-auto" />
-        <div className="absolute inset-0 border-2 border-green-400 rounded-lg pointer-events-none"></div>
+  );  const renderCapturedImage = (imageSrc: string) => (
+    <div className="relative w-full max-w-2xl mx-auto">
+      <div className="relative overflow-hidden rounded-xl border border-white/20 bg-black/40 backdrop-blur-sm">
+        <img src={imageSrc} alt="Captured" className="w-full h-[480px] object-cover" />
+        <div className="absolute inset-0 border border-green-400/50 rounded-xl pointer-events-none shadow-[inset_0_0_20px_rgba(74,222,128,0.2)]"></div>
       </div>
     </div>
-  );
-  return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-4">
-      <div className="relative z-10 max-w-md w-full">
-        <Card className="border shadow-lg">
+  );return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center p-4">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 z-0">
+        <div className="absolute top-1/4 left-1/4 w-72 h-72 bg-purple-500/30 rounded-full filter blur-3xl animate-pulse"></div>
+        <div className="absolute top-1/3 right-1/3 w-96 h-96 bg-cyan-500/30 rounded-full filter blur-3xl animate-pulse delay-1000"></div>
+      </div>
+
+      <div className="relative z-10 max-w-2xl w-full">
+        <Card className="bg-black/20 backdrop-blur-lg border-white/10 shadow-xl">
           <CardHeader>
-            <CardTitle className="text-gray-800">Face Registration</CardTitle>
-            <CardDescription className="text-gray-600">
+            <CardTitle className="text-2xl font-bold text-white flex items-center gap-3">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">
+                Face Registration
+              </span>
+              <div className="h-2 w-2 rounded-full bg-green-400 animate-pulse"></div>
+            </CardTitle>
+            <CardDescription className="text-gray-300 text-base">
               Register your face to secure your wallet using biometric authentication.
               {!username && (
-                <div className="text-red-500 mt-2">
+                <div className="mt-2 text-red-400 bg-red-950/50 p-2 rounded-lg border border-red-500/20 flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-red-400 animate-pulse"></div>
                   Please connect your wallet to continue.
                 </div>
               )}
@@ -360,7 +377,7 @@ const RegisterPage: React.FC = () => {
                 {registrationStep === 'confirm1' && image1 && renderCapturedImage(image1)}
                 {registrationStep === 'confirm2' && image2 && renderCapturedImage(image2)}
               </div>              {message && (
-                <div className="mb-6 p-4 bg-gray-50 border rounded-lg text-center text-gray-700">
+                <div className="mb-6 p-4 bg-black/40 backdrop-blur-sm border border-white/10 rounded-lg text-center text-gray-300 shadow-lg">
                   {message}
                 </div>
               )}
@@ -370,9 +387,9 @@ const RegisterPage: React.FC = () => {
                   <Button
                     onClick={handleCapture}
                     disabled={loading || !username}
-                    className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+                    className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white shadow-lg shadow-cyan-500/20 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-[1.02] py-6 text-lg rounded-xl"
                   >
-                    <Camera className="mr-2 h-4 w-4" />
+                    <Camera className="mr-2 h-5 w-5" />
                     <span>Capture Photo {registrationStep === 'capture1' ? '1' : '2'}</span>
                   </Button>
                 )}
@@ -382,17 +399,17 @@ const RegisterPage: React.FC = () => {
                     <Button
                       onClick={handleRetake}
                       variant="outline"
-                      className="flex-1 border-gray-200 hover:bg-gray-50 text-gray-700"
+                      className="flex-1 bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 backdrop-blur-sm shadow-lg transform transition-all duration-300 hover:scale-[1.02] py-6 text-lg rounded-xl"
                     >
-                      <RotateCcw className="mr-2 h-4 w-4" />
+                      <RotateCcw className="mr-2 h-5 w-5" />
                       <span>Retake</span>
                     </Button>
                     <Button
                       onClick={handleConfirm}
                       disabled={loading}
-                      className="flex-1 bg-blue-500 hover:bg-blue-600 text-white"
+                      className="flex-1 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg shadow-green-500/20 disabled:opacity-50 disabled:cursor-not-allowed transform transition-all duration-300 hover:scale-[1.02] py-6 text-lg rounded-xl"
                     >
-                      <Check className="mr-2 h-4 w-4" />
+                      <Check className="mr-2 h-5 w-5" />
                       <span>{registrationStep === 'confirm2' ? 'Register' : 'Next'}</span>
                     </Button>
                   </div>
