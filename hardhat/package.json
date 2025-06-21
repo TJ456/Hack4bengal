@@ -1,0 +1,28 @@
+{
+  "name": "hardhat-project",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.ts --network localhost",
+    "deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "deploy:goerli": "hardhat run scripts/deploy.ts --network goerli",
+    "deploy:mumbai": "hardhat run scripts/deploy.ts --network mumbai",
+    "deploy:monad": "hardhat run scripts/deploy.ts --network monad_testnet",
+    "verify": "hardhat verify --network",
+    "verify:monad": "hardhat verify --network monad_testnet",
+    "extract-abi": "node scripts/extract-abi.js",
+    "test:monad": "hardhat run scripts/test-monad-deployment.js --network monad_testnet",
+    "monad:workflow": "node scripts/monad-deploy-workflow.js",
+    "validate:key": "node scripts/validate-private-key.js",
+    "fix:key": "node scripts/validate-private-key.js"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+    "dotenv": "^16.5.0",
+    "hardhat": "^2.24.1"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^4.9.6",
+    "lucide-react": "^0.522.0"
+  }
+}

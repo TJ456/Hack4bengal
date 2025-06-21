@@ -1,0 +1,49 @@
+services:
+  - type: web
+    name: wallet-backend
+    env: go
+    repo: https://github.com/TJ456/Wallet1.git
+    region: ohio
+    branch: main
+    rootDir: backend
+    buildCommand: go mod download && go mod tidy && go build -o server
+    startCommand: ./start.sh
+    autoDeploy: true
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        sync: false  # Set this secret in Render dashboard
+      - key: ML_MODEL_URL
+        value: https://ml-fraud-transaction-detection.onrender.com/predict
+      - key: JWT_SECRET
+        sync: false  # Set this secret in Render dashboard
+      - key: TELEGRAM_TOKEN
+        sync: false  # Set this secret in Render dashboard
+      - key: ETH_RPC_URL
+        sync: false  # Set this secret in Render dashboard
+      - key: SCAM_REPORT_CONTRACT
+        sync: false  # Set this secret in Render dashboard
+      - key: REPORTER_PRIVATE_KEY
+        sync: false  # Set this secret in Render dashboard
+      - key: CHAIN_ID
+        value: "11155111"  # Sepolia testnet
+  
+  # Optional: Add a PostgreSQL database if you don't have one already
+  - type: pserv
+    name: wallet-postgres
+    env: docker
+    repo: https://github.com/render-examples/postgres.git  # Render's PostgreSQL template
+    envVars:
+      - key: POSTGRES_USER
+        value: postgres
+      - key: POSTGRES_PASSWORD
+        sync: false  # Set this secret in Render dashboard
+      - key: POSTGRES_DB
+        value: wallet
+    disk:
+      name: data
+      mountPath: /var/lib/postgresql/data
+      sizeGB: 10
+        value: 11155111  # Sepolia testnet

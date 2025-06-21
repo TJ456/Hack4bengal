@@ -1,0 +1,10 @@
+# .dockerignore for Go application
+.git
+.github
+.vscode
+*.md
+Dockerfile
+LICENSE
+*.log
+.env*
+!.env.example
