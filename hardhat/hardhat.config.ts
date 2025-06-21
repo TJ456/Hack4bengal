@@ -19,58 +19,26 @@ const MONADSCAN_API_KEY = process.env.MONADSCAN_API_KEY || "";
 
 const config: HardhatUserConfig = {
   solidity: "0.8.28",
-  networks: {
-    // Local network for testing
-    localhost: {
-      url: "http://127.0.0.1:8545",
-    },
-    // Sepolia testnet
-    sepolia: {
-      url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY || ""}`,
-      accounts: PRIVATE_KEY !== "0x0000000000000000000000000000000000000000000000000000000000000000" 
-        ? [PRIVATE_KEY] 
-        : [],
-      chainId: 11155111
-    },
-    // Goerli testnet
-    goerli: {
-      url: `https://goerli.infura.io/v3/${process.env.INFURA_API_KEY || ""}`,
-      accounts: PRIVATE_KEY !== "0x0000000000000000000000000000000000000000000000000000000000000000" 
-        ? [PRIVATE_KEY] 
-        : [],
-      chainId: 5
-    },
-    // Mumbai testnet (Polygon)
-    mumbai: {
-      url: `https://polygon-mumbai.infura.io/v3/${process.env.INFURA_API_KEY || ""}`,
-      accounts: PRIVATE_KEY !== "0x0000000000000000000000000000000000000000000000000000000000000000" 
-        ? [PRIVATE_KEY] 
-        : [],
-      chainId: 80001
-    },    // Monad testnet
+  defaultNetwork: "monad_testnet",
+  networks: {    
     monad_testnet: {
-      url: process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz",
-      accounts: PRIVATE_KEY !== "0x0000000000000000000000000000000000000000000000000000000000000000" 
-        ? [PRIVATE_KEY] 
-        : [],
-      chainId: 10143
+      url: "https://testnet-rpc.monad.xyz",  // Latest Monad testnet RPC
+      accounts: [PRIVATE_KEY],      chainId: 10143,  // Monad Local testnet chain ID
+      gasPrice: 1000000000, // 1 gwei
+      timeout: 60000 // 1 minute timeout
     }
-  },
+  },  
   etherscan: {
     apiKey: {
-      mainnet: ETHERSCAN_API_KEY,
-      goerli: ETHERSCAN_API_KEY,
-      sepolia: ETHERSCAN_API_KEY,
-      polygon: POLYGONSCAN_API_KEY,
-      polygonMumbai: POLYGONSCAN_API_KEY,
-      monad_testnet: MONADSCAN_API_KEY
-    },    customChains: [
+      monad_testnet: process.env.MONADSCAN_API_KEY || ""
+    },
+    customChains: [
       {
         network: "monad_testnet",
-        chainId: 10143,
+        chainId: 10143,  // Monad Local testnet chain ID
         urls: {
-          apiURL: "https://testnet.monadexplorer.com/api",
-          browserURL: "https://testnet.monadexplorer.com"
+          apiURL: "https://explorer.testnet.monad.xyz/api",
+          browserURL: "https://explorer.testnet.monad.xyz"
         }
       }
     ]

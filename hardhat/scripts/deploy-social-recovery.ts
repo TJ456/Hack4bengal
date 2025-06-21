@@ -13,10 +13,20 @@ async function main() {
 
   // Default guardian threshold is 2 (can be changed during deployment)
   const GUARDIAN_THRESHOLD = 2;
+  // Get the current gas price and increase it
+  const gasPrice = await ethers.provider.getFeeData();
+  const maxFeePerGas = gasPrice.maxFeePerGas ? gasPrice.maxFeePerGas * BigInt(2) : undefined;
+  const maxPriorityFeePerGas = gasPrice.maxPriorityFeePerGas ? gasPrice.maxPriorityFeePerGas * BigInt(2) : undefined;
 
-  // Deploy the contract
+  // Deploy the contract with custom gas settings
   const SocialRecoveryWallet = await ethers.getContractFactory("SocialRecoveryWallet");
-  const socialRecoveryWallet = await SocialRecoveryWallet.deploy(GUARDIAN_THRESHOLD);
+  const socialRecoveryWallet = await SocialRecoveryWallet.deploy(
+    GUARDIAN_THRESHOLD,
+    {
+      maxFeePerGas,
+      maxPriorityFeePerGas
+    }
+  );
   await socialRecoveryWallet.waitForDeployment();
 
   const address = await socialRecoveryWallet.getAddress();

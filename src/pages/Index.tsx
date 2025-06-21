@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { AlertTriangle, CheckCircle, Zap, Lock, User, Cloud, Shield, CreditCard, Smartphone } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Zap,Lock,Cloud,CrediCard,Smartphone,Users, FileText, Settings, PieChart, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,9 @@ import AILearningFeedback from '@/components/AILearningFeedback';
 import TelegramCompanion from '@/components/TelegramCompanion';
 import TelegramSettings from '@/components/TelegramSettings';
 import WalletAnalytics from '@/components/WalletAnalytics';
+import GuardianManager from '@/components/GuardianManager';
+import { useCivicStore } from '@/stores/civicStore';
+import SimpleCivicAuth from '@/components/civic/SimpleCivicAuth';
 
 const Index = () => {
   const [walletConnected, setWalletConnected] = useState(false);
@@ -39,6 +42,7 @@ const Index = () => {
   const [showAIFeedback, setShowAIFeedback] = useState(false);
   const [lastAction, setLastAction] = useState<'vote' | 'report' | 'block' | 'scan'>('scan');
   const [isProcessing, setIsProcessing] = useState(false);
+  const [civicClientId] = useState(import.meta.env.VITE_CIVIC_CLIENT_ID || "demo_client_id");
   
   const { toast } = useToast();
 
@@ -157,6 +161,26 @@ const Index = () => {
     });
   };
 
+  const handleCivicSuccess = (gatewayToken: string) => {
+    if (currentAddress) {
+      const store = useCivicStore.getState();
+      store.setGatewayToken(currentAddress, gatewayToken);
+      
+      toast({
+        title: "Identity Verified",
+        description: "Your wallet is now verified with Civic",
+      });
+    }
+  };
+
+  const handleCivicError = (error: Error) => {
+    toast({
+      title: "Verification Failed",
+      description: error.message,
+      variant: "destructive"
+    });
+  };
+  
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* New Header Component */}
@@ -432,17 +456,86 @@ const Index = () => {
             </div>
           </div>
         </div>
-      </section>
+      </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
-        {activeTab === 'overview' && (
-          <div className="space-y-6">
-            {/* Security Score Card */}
-            <SecurityScore />
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className="w-64 min-h-screen bg-black/20 backdrop-blur-lg border-r border-white/10">
+          <nav className="p-6 space-y-2">
+            {[
+              { id: 'overview', label: 'Overview', icon: Shield },
+              { id: 'analytics', label: 'Wallet Analytics', icon: PieChart },
+              { id: 'dao', label: 'DAO Voting', icon: Users },
+              { id: 'reports', label: 'Threat Reports', icon: FileText },
+              { id: 'recovery', label: 'Recovery', icon: Key },
+              { id: 'settings', label: 'Settings', icon: Settings },
+            ].map((item) => (
+              <button
+                key={item.id}
+                onClick={() => setActiveTab(item.id)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                  activeTab === item.id
+                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
+                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                }`}
+              >
+                <item.icon className="h-5 w-5" />
+                <span className="font-medium">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </aside>
 
-            {/* Threat Status Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Main Content */}
+        <main className="flex-1 p-6">
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* Security Score Card */}
+              <SecurityScore />
+
+              {/* Threat Status Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-400">Threat Level</CardTitle>
+                    <AlertTriangle className={`h-4 w-4 ${threatLevel === 'danger' ? 'text-red-500' : threatLevel === 'warning' ? 'text-yellow-500' : 'text-green-500'}`} />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-white capitalize">{threatLevel}</div>
+                    <Badge className={`mt-2 ${getThreatColor(threatLevel)}`}>
+                      {threatLevel === 'safe' ? 'All Systems Secure' : 
+                       threatLevel === 'warning' ? 'Suspicious Activity' : 
+                       'Threat Detected'}
+                    </Badge>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-400">AI Scans Today</CardTitle>
+                    <Zap className="h-4 w-4 text-yellow-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-white">{aiScansToday}</div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      <span className="text-green-400">+{Math.floor(Math.random() * 20) + 5}%</span> from yesterday
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium text-gray-400">Blocked Threats</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-white">{blockedThreats}</div>
+                    <p className="text-xs text-gray-400 mt-2">
+                      Saved <span className="text-green-400">${savedAmount.toLocaleString()}</span> in potential losses
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>              {/* Send Transaction Section */}
               <Card className="bg-black/20 backdrop-blur-lg border-white/10">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-gray-400">Threat Level</CardTitle>
@@ -527,42 +620,41 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Threat Monitor */}
-            <ThreatMonitor threatLevel={threatLevel} />
-
-            {/* Transaction History */}
-            <TransactionHistory />
-          </div>
-        )}
-
-        {activeTab === 'analytics' && <WalletAnalytics walletAddress={currentAddress} />}
-
-        {activeTab === 'dao' && (
-          <div className="space-y-6">
-            <DAOPanel />
-          </div>
-        )}
-
-        {activeTab === 'reports' && (
-          <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-            <CardHeader>
-              <CardTitle className="text-white">Community Threat Reports</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <p className="text-gray-400">
-                  Help protect the Web3 community by reporting suspicious contracts and activities.
-                  <span className="text-purple-400 font-medium"> Earn +5 Shield Points per verified report!</span>
+         )}          {activeTab === 'recovery' && (
+            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+              <CardHeader>
+                <CardTitle className="text-white flex items-center space-x-2">
+                  <Key className="h-5 w-5 text-cyan-400" />
+                  <span>Social Recovery Settings</span>
+                </CardTitle>
+                <p className="text-gray-400 mt-2">
+                  Set up trusted guardians who can help you recover your wallet if you lose access.
+                  A minimum of {2} guardians must approve the recovery process.
                 </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Recent reports with enhanced styling */}
-                  <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                    <h4 className="text-white font-medium mb-2">Recent Reports</h4>
-                    <div className="text-sm text-gray-400">
-                      <div className="flex justify-between items-center mb-2">
-                        <span>Token Drainer</span>
-                        <Badge className="bg-red-500/20 text-red-400">High Risk</Badge>
+              </CardHeader>
+              <CardContent className="space-y-6">                <SimpleCivicAuth
+                  clientId={civicClientId}
+                  walletAddress={currentAddress}
+                  onSuccess={handleCivicSuccess}
+                  onError={handleCivicError}
+                />
+                <GuardianManager walletAddress={currentAddress} />
+              </CardContent>
+            </Card>
+          )}
+
+          {activeTab === 'settings' && (
+            <div className="space-y-6">
+              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white">Security Settings</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+                      <div>
+                        <h4 className="text-white font-medium">Real-time Protection</h4>
+                        <p className="text-sm text-gray-400">Enable AI-powered transaction scanning</p>
                       </div>
                       <div className="flex justify-between items-center mb-2">
                         <span>Fake Airdrop</span>
@@ -574,7 +666,7 @@ const Index = () => {
                       </div>
                     </div>
                   </div>
-                  {/* Enhanced submit button */}
+                 {/* Enhanced submit button */}
                   <div className="p-4 bg-white/5 rounded-lg border border-white/10">
                     <h4 className="text-white font-medium mb-2">Submit New Report</h4>
                     <Button
