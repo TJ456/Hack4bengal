@@ -190,34 +190,126 @@ const Index = () => {
     }
   };
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+  return (    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">      
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur-lg">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-3">
-              <div className="relative">
-                <Shield className="h-8 w-8 text-cyan-400" />
+      <header className="w-full border-b border-white/10 bg-black/20 backdrop-blur-lg animate-fade-in-down">
+        <div className="w-full py-4">
+          <div className="flex items-center justify-between w-full">
+            {/* Logo and Brand */}
+            <div className="flex items-center space-x-4 pl-4">
+              <div className="relative transition-transform hover:scale-105 duration-300">
+                <Shield className="h-10 w-10 text-cyan-400" />
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">The Unhackable Wallet</h1>
-                <p className="text-sm text-gray-400">AI-Powered Web3 Guardian</p>
+              <div className="whitespace-nowrap">
+                <h1 className="text-3xl font-bold text-white tracking-tight hover:text-cyan-400 transition-colors duration-300">The Unhackable Wallet</h1>
+                <p className="text-sm text-gray-400 font-medium">AI-Powered Web3 Guardian</p>
+              </div>
+            </div>            {/* Navigation Links */}
+            <nav className="hidden md:flex items-center justify-center flex-1 space-x-6 whitespace-nowrap">
+              <button
+                onClick={() => setActiveTab('overview')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'overview'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Shield className="h-5 w-5" />
+                <span>Overview</span>
+              </button>
+              <button
+                onClick={() => navigate('/register')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'register'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Key className="h-5 w-5" />
+                <span>Register</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('analytics')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'analytics'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <PieChart className="h-5 w-5" />
+                <span>Wallet Analytics</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('dao')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'dao'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Users className="h-5 w-5" />
+                <span>DAO Voting</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('reports')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'reports'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <FileText className="h-5 w-5" />
+                <span>Threat Reports</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('recovery')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'recovery'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Key className="h-5 w-5" />
+                <span>Recovery</span>
+              </button>
+              <button
+                onClick={() => setActiveTab('settings')}
+                className={`flex items-center gap-2 px-2 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'settings'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Settings className="h-5 w-5" />
+                <span>Settings</span>
+              </button>
+            </nav>
+
+            {/* Connect Wallet and Register */}
+            <div className="flex items-center gap-4 pr-4">
+              <Link to="/register">
+                <Button
+                  className="bg-cyan-600 hover:bg-cyan-700 text-white px-6 py-2 rounded-lg transition-all duration-300 hover:scale-105 hover:shadow-lg hover:shadow-cyan-500/20"
+                >
+                  Register
+                </Button>
+              </Link>
+              <div className="transition-transform hover:scale-105 duration-300">
+                <WalletConnect 
+                  onConnect={(address) => {
+                    setWalletConnected(true);
+                    setCurrentAddress(address);
+                    toast({
+                      title: "Wallet Connected",
+                      description: `Connected to ${address.slice(0, 6)}...${address.slice(-4)}`,
+                    });
+                  }}
+                  isConnected={walletConnected}
+                  address={currentAddress}
+                />
               </div>
             </div>
-            <WalletConnect 
-              onConnect={(address) => {
-                setWalletConnected(true);
-                setCurrentAddress(address);
-                toast({
-                  title: "Wallet Connected",
-                  description: `Connected to ${address.slice(0, 6)}...${address.slice(-4)}`,
-                });
-              }}
-              isConnected={walletConnected}
-              address={currentAddress}
-            />
           </div>
         </div>
       </header>
@@ -229,283 +321,4 @@ const Index = () => {
               { id: 'overview', label: 'Overview', icon: Shield },
               { id: 'register', label: 'Register', icon: Key },
               { id: 'analytics', label: 'Wallet Analytics', icon: PieChart },
-              { id: 'dao', label: 'DAO Voting', icon: Users },
-              { id: 'reports', label: 'Threat Reports', icon: FileText },
-              { id: 'recovery', label: 'Recovery', icon: Key },
-              { id: 'settings', label: 'Settings', icon: Settings },
-            ].map((item) => (
-              <button
-                key={item.id}
-                onClick={() => handleNavigation(item)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                  activeTab === item.id
-                    ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-                    : 'text-gray-400 hover:text-white hover:bg-white/5'
-                }`}
-              >
-                <item.icon className="h-5 w-5" />
-                <span className="font-medium">{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
-
-        {/* Main Content */}
-        <main className="flex-1 p-6">
-          {activeTab === 'overview' && (
-            <div className="space-y-6">
-              {/* Security Score Card */}
-              <SecurityScore />
-
-              {/* Threat Status Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-400">Threat Level</CardTitle>
-                    <AlertTriangle className={`h-4 w-4 ${threatLevel === 'danger' ? 'text-red-500' : threatLevel === 'warning' ? 'text-yellow-500' : 'text-green-500'}`} />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-white capitalize">{threatLevel}</div>
-                    <Badge className={`mt-2 ${getThreatColor(threatLevel)}`}>
-                      {threatLevel === 'safe' ? 'All Systems Secure' : 
-                       threatLevel === 'warning' ? 'Suspicious Activity' : 
-                       'Threat Detected'}
-                    </Badge>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-400">AI Scans Today</CardTitle>
-                    <Zap className="h-4 w-4 text-yellow-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-white">{aiScansToday}</div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      <span className="text-green-400">+{Math.floor(Math.random() * 20) + 5}%</span> from yesterday
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium text-gray-400">Blocked Threats</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-green-500" />
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-white">{blockedThreats}</div>
-                    <p className="text-xs text-gray-400 mt-2">
-                      Saved <span className="text-green-400">${savedAmount.toLocaleString()}</span> in potential losses
-                    </p>
-                  </CardContent>
-                </Card>
-              </div>              {/* Send Transaction Section */}
-              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Send Tokens</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">                    <Button 
-                      asChild
-                      className="bg-green-600 hover:bg-green-700 text-white w-full"
-                    >
-                      <Link to="/send">💸 Send Tokens Securely</Link>
-                    </Button>
-                    <p className="text-sm text-gray-400">
-                      Send tokens to any address with ML-powered fraud detection.
-                      Our AI will analyze the transaction and warn you about potential risks.
-                      <span className="text-cyan-400 font-medium"> Protected by external ML fraud detection!</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Enhanced Demo Section */}
-              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">AI Security Demo</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <Button 
-                      onClick={simulateScamTransaction}
-                      disabled={showInterceptor || isProcessing}
-                      className="bg-red-600 hover:bg-red-700 text-white disabled:opacity-50"
-                    >
-                      {isProcessing ? 'Processing...' : showInterceptor ? 'Threat Active...' : '🚨 Simulate Scam Transaction'}
-                    </Button>
-                    <p className="text-sm text-gray-400">
-                      Test the AI threat detection system with a simulated malicious transaction. 
-                      Our AI will analyze the transaction and warn you about potential risks.
-                      <span className="text-cyan-400 font-medium"> Earn +3 Shield Points when you block threats!</span>
-                    </p>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Threat Monitor */}
-              <ThreatMonitor threatLevel={threatLevel} />
-
-              {/* Transaction History */}
-              <TransactionHistory />
-            </div>
-          )}
-
-          {activeTab === 'analytics' && <WalletAnalytics walletAddress={currentAddress} />}
-          
-          {activeTab === 'dao' && (
-            <div className="space-y-6">
-              <DAOPanel />
-            </div>
-          )}
-
-          {activeTab === 'reports' && (
-            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white">Community Threat Reports</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-gray-400">
-                    Help protect the Web3 community by reporting suspicious contracts and activities.
-                    <span className="text-purple-400 font-medium"> Earn +5 Shield Points per verified report!</span>
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {/* Recent reports with enhanced styling */}
-                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                      <h4 className="text-white font-medium mb-2">Recent Reports</h4>
-                      <div className="text-sm text-gray-400">
-                        <div className="flex justify-between items-center mb-2">
-                          <span>Token Drainer</span>
-                          <Badge className="bg-red-500/20 text-red-400">High Risk</Badge>
-                        </div>
-                        <div className="flex justify-between items-center mb-2">
-                          <span>Fake Airdrop</span>
-                          <Badge className="bg-yellow-500/20 text-yellow-400">Medium Risk</Badge>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span>Rug Pull Contract</span>
-                          <Badge className="bg-green-500/20 text-green-400">Resolved</Badge>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Enhanced submit button */}
-                    <div className="p-4 bg-white/5 rounded-lg border border-white/10">
-                      <h4 className="text-white font-medium mb-2">Submit New Report</h4>
-                      <Button 
-                        className="w-full bg-cyan-600 hover:bg-cyan-700"
-                        onClick={handleThreatReport}
-                      >
-                        Report Suspicious Activity (+5 Points)
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}          {activeTab === 'recovery' && (
-            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center space-x-2">
-                  <Key className="h-5 w-5 text-cyan-400" />
-                  <span>Social Recovery Settings</span>
-                </CardTitle>
-                <p className="text-gray-400 mt-2">
-                  Set up trusted guardians who can help you recover your wallet if you lose access.
-                  A minimum of {2} guardians must approve the recovery process.
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">                <SimpleCivicAuth
-                  clientId={civicClientId}
-                  walletAddress={currentAddress}
-                  onSuccess={handleCivicSuccess}
-                  onError={handleCivicError}
-                />
-                <GuardianManager walletAddress={currentAddress} />
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="space-y-6">
-              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Security Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Real-time Protection</h4>
-                        <p className="text-sm text-gray-400">Enable AI-powered transaction scanning</p>
-                      </div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Auto-block High Risk</h4>
-                        <p className="text-sm text-gray-400">Automatically block transactions with 90%+ risk score</p>
-                      </div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Community Reports</h4>
-                        <p className="text-sm text-gray-400">Show warnings from community-reported contracts</p>
-                      </div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Telegram Settings Integration */}
-              <TelegramSettings walletAddress={currentAddress} />
-            </div>
-          )}
-
-          {activeTab === 'recovery' && (
-            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white">Guardian Recovery Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-gray-400 text-sm">
-                    Manage your Guardian recovery settings. Enable recovery options to enhance wallet security.
-                  </p>
-                  
-                  <GuardianManager walletAddress={currentAddress} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </main>
-      </div>
-
-      {/* Enhanced Modals and Notifications */}
-      {showInterceptor && (
-        <TransactionInterceptor 
-          onClose={handleCloseInterceptor}
-          onBlock={handleBlockTransaction}
-          fromAddress={transactionDetails.fromAddress}
-          toAddress={transactionDetails.toAddress}
-          value={transactionDetails.value}
-          gasPrice={transactionDetails.gasPrice}
-        />
-      )}
-
-      {/* AI Learning Feedback */}
-      <AILearningFeedback 
-        trigger={showAIFeedback}
-        actionType={lastAction}
-        onComplete={() => setShowAIFeedback(false)}
-      />
-
-      {/* Telegram Companion */}
-      <TelegramCompanion />
-    </div>
-  );
-};
-
-export default Index;
+              { id: 'dao', label: 'DA
