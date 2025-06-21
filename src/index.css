@@ -2,6 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Custom animations for wallet and orbital elements */
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes orbit-oval {
+  0% {
+    transform: rotate(0deg) translateX(180px) translateY(0px) rotate(0deg);
+  }
+  25% {
+    transform: rotate(90deg) translateX(180px) translateY(-60px) rotate(-90deg);
+  }
+  50% {
+    transform: rotate(180deg) translateX(180px) translateY(0px) rotate(-180deg);
+  }
+  75% {
+    transform: rotate(270deg) translateX(180px) translateY(60px) rotate(-270deg);
+  }
+  100% {
+    transform: rotate(360deg) translateX(180px) translateY(0px) rotate(-360deg);
+  }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-orbit-oval {
+  animation: orbit-oval 30s linear infinite;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
