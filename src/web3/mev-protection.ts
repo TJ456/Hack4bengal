@@ -15,7 +15,7 @@ import {
   SimulationResponse,
   FlashbotsTransaction
 } from '@flashbots/ethers-provider-bundle';
-import { DEX_ROUTER_ADDRESSES, DEX_FUNCTION_SELECTORS, DEX_INTERFACES } from './constants.js';
+import { DEX_ROUTER_ADDRESSES, DEX_FUNCTION_SELECTORS, DEX_INTERFACES } from './constants';
 
 export interface IMEVProtection {
   protectTransaction(tx: TransactionRequest): Promise<TransactionResponse>;
@@ -137,13 +137,16 @@ export class MEVProtection implements IMEVProtection {
       delete tx.maxPriorityFeePerGas;
     }
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise<TransactionResponse>(async (resolve, reject) => {
       try {
-        // Create bundle with transaction details and signer
         const bundle = [{
           transaction: tx,
           signer: this.signer
         }];
+
+        if (!this.flashbotsProvider) {
+          throw new Error("Flashbots provider was unexpectedly null");
+        }
 
         // Simulate first
         const simulation = await this.flashbotsProvider.simulate(
@@ -270,15 +273,17 @@ export class MEVProtection implements IMEVProtection {
 
   async isTransactionProtected(transaction: ethers.TransactionRequest): Promise<boolean> {
     // Check if transaction is using Flashbots
-    const isFlashbots = this.flashbotsProvider && 
+    const isFlashbots = this.flashbotsProvider != null && 
                        transaction.maxFeePerGas !== undefined &&
                        transaction.maxPriorityFeePerGas !== undefined;
     
     // Check if transaction has slippage protection
-    const hasSlippage = transaction.to && this.isDEXTrade(transaction.to.toString()) &&
-                       this.hasSlippageProtection(transaction.data!);
+    const hasSlippage = transaction.to && 
+                       this.isDEXTrade(transaction.to.toString()) &&
+                       transaction.data != null &&
+                       this.hasSlippageProtection(transaction.data);
     
-    return isFlashbots || hasSlippage;
+    return Boolean(isFlashbots || hasSlippage);
   }
 
   private hasSlippageProtection(txData: string): boolean {
