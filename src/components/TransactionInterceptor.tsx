@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Shield, X, ExternalLink, Zap, Brain, Heart } from 'lucide-react';
 import { ethers } from 'ethers';
+import walletConnector from '@/web3/wallet';
 
 interface TransactionInterceptorProps {
   onClose: () => void;
@@ -13,6 +14,7 @@ interface TransactionInterceptorProps {
   value: number;
   gasPrice: number;
   isSuccess?: boolean; // Optional prop to show success modal instead of warning
+  transaction?: ethers.TransactionRequest;
 }
 
 interface MLResponse {
@@ -56,7 +58,8 @@ const TransactionInterceptor: React.FC<TransactionInterceptorProps> = ({
   fromAddress,
   value,
   gasPrice,
-  isSuccess = false
+  isSuccess = false,
+  transaction
 }) => {
   const [whitelistedAddresses, setWhitelistedAddresses] = useState<string[]>(() => {
     const saved = localStorage.getItem('whitelisted-addresses');
@@ -66,6 +69,7 @@ const TransactionInterceptor: React.FC<TransactionInterceptorProps> = ({
   const [mlResponse, setMlResponse] = useState<MLResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isMEVProtected, setIsMEVProtected] = useState<boolean | null>(null);
 
   const isAddressWhitelisted = whitelistedAddresses.includes(toAddress);
 
@@ -292,6 +296,22 @@ const TransactionInterceptor: React.FC<TransactionInterceptorProps> = ({
     }
   };
 
+  useEffect(() => {
+    const checkMEVProtection = async () => {
+      if (transaction && walletConnector.isTransactionProtected) {
+        try {
+          const isProtected = await walletConnector.isTransactionProtected(transaction);
+          setIsMEVProtected(isProtected);
+        } catch (err) {
+          console.warn('Failed to check MEV protection:', err);
+          setIsMEVProtected(false);
+        }
+      }
+    };
+
+    checkMEVProtection();
+  }, [transaction]);
+
   if (isLoading) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
@@ -348,6 +368,20 @@ const TransactionInterceptor: React.FC<TransactionInterceptorProps> = ({
               </div>
               <span>{isSuccess ? '✅ SECURITY PASSED' : '🚨 RISK ASSESSMENT'}</span>
             </CardTitle>
+            
+            {/* MEV Protection Status */}
+            {isMEVProtected !== null && (
+              <Badge 
+                className={isMEVProtected 
+                  ? "bg-green-500/20 text-green-400 flex items-center gap-1"
+                  : "bg-yellow-500/20 text-yellow-400 flex items-center gap-1"
+                }
+              >
+                <Shield className="w-3 h-3" />
+                {isMEVProtected ? "MEV Protected" : "MEV Protection Available"}
+              </Badge>
+            )}
+            
             <button
               onClick={onClose}
               className="text-gray-400 hover:text-white transition-colors p-1 rounded"
@@ -431,6 +465,33 @@ const TransactionInterceptor: React.FC<TransactionInterceptorProps> = ({
               </div>
             </div>
           </div>
+
+          {/* MEV Protection Status */}
+          {transaction && (
+            <div className="p-4 rounded-lg border bg-white/5 border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-gray-400">MEV Protection Status</div>
+                <div className="text-sm">
+                  {isMEVProtected === null ? (
+                    <div className="animate-pulse h-4 bg-gray-700 rounded-full w-1/2"></div>
+                  ) : isMEVProtected ? (
+                    <Badge className="bg-green-500/20 text-green-400">
+                      Protected
+                    </Badge>
+                  ) : (
+                    <Badge className="bg-red-500/20 text-red-400">
+                      Not Protected
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {isMEVProtected === false && (
+                <div className="mt-2 text-sm text-red-400">
+                  ⚠️ This transaction is not protected against MEV (Miner Extractable Value) attacks.
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Action Buttons */}          <div className="flex items-center justify-between pt-4 border-t border-white/10">
             {!isAddressWhitelisted && (

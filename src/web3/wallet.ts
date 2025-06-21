@@ -3,6 +3,7 @@
 
 import { ethers, BrowserProvider, Signer, formatUnits, parseUnits, Contract } from 'ethers';
 import { NETWORK_INFO, isMonadNetwork } from './utils';
+import { IMEVProtection, createMEVProtection } from './mev-protection';
 
 /**
  * Simple functions for basic wallet connection
@@ -133,6 +134,9 @@ class WalletConnector {
   private _handleAccountsChanged: ((accounts: string[]) => void) | null;
   private _handleChainChanged: ((chainId: string) => void) | null;
   private _handleDisconnect: ((error: any) => void) | null;
+  
+  // MEV Protection
+  private mevProtection: IMEVProtection | null = null;
 
   constructor() {
     this.provider = null;
@@ -388,6 +392,45 @@ class WalletConnector {
     window.ethereum.on('accountsChanged', this._handleAccountsChanged);
     window.ethereum.on('chainChanged', this._handleChainChanged);
     window.ethereum.on('disconnect', this._handleDisconnect);
+  }
+
+  /**
+   * Send a transaction with MEV protection
+   */
+  async sendProtectedTransaction(tx: ethers.TransactionRequest): Promise<ethers.TransactionResponse> {
+    if (!this.provider || !this.address) {
+      throw new Error("Wallet not connected");
+    }
+
+    if (!this.mevProtection) {
+      // Initialize MEV protection if not already done
+      this.mevProtection = await createMEVProtection(this.provider, {
+        enabled: true,
+        useFlashbots: true,
+        slippageTolerance: 0.5
+      });
+    }
+
+    return this.mevProtection.protectTransaction(tx);
+  }
+
+  /**
+   * Check if a transaction is protected against MEV
+   */
+  async isTransactionProtected(tx: ethers.TransactionRequest): Promise<boolean> {
+    if (!this.provider || !this.address) {
+      throw new Error("Wallet not connected");
+    }
+
+    if (!this.mevProtection) {
+      this.mevProtection = await createMEVProtection(this.provider, {
+        enabled: true,
+        useFlashbots: true,
+        slippageTolerance: 0.5
+      });
+    }
+
+    return this.mevProtection.isTransactionProtected(tx);
   }
 }
 
