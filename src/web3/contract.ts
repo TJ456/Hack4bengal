@@ -530,7 +530,8 @@ class ContractService extends EventEmitter {
       );
       
       console.log('Gas estimate:', gasEstimate.toString());      // Submit transaction with enough gas and handle gas price
-      const gasPrice = await walletConnector.provider?.getGasPrice();
+      const feeData = await walletConnector.provider?.getFeeData();
+      const gasPrice = feeData?.gasPrice;
       console.log('Current gas price:', gasPrice?.toString());
 
       const tx = await this.votingContract.submitProposal(

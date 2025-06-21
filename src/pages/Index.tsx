@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Shield, AlertTriangle, CheckCircle, Zap, Users, FileText, Settings, PieChart, Key } from 'lucide-react';
+import { Shield, AlertTriangle, CheckCircle, Zap, Users, FileText, PieChart, Key, UserPlus } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -12,8 +12,7 @@ import DAOPanel from '@/components/dao/DAOPanel';
 import TransactionInterceptor from '@/components/TransactionInterceptor';
 import SecurityScore from '@/components/SecurityScore';
 import AILearningFeedback from '@/components/AILearningFeedback';
-import TelegramCompanion from '@/components/TelegramCompanion';
-import TelegramSettings from '@/components/TelegramSettings';
+import ChatbotAssistant from '@/components/ChatbotAssistant';
 import WalletAnalytics from '@/components/WalletAnalytics';
 import GuardianManager from '@/components/GuardianManager';
 import { useCivicStore } from '@/stores/civicStore';
@@ -45,6 +44,12 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [civicClientId] = useState(import.meta.env.VITE_CIVIC_CLIENT_ID || "demo_client_id");
   
+  const [registrationData, setRegistrationData] = useState({
+    email: '',
+    password: '',
+    confirmPassword: ''
+  });
+
   const { toast } = useToast();
 
   // Reset threat level after some time for demo purposes
@@ -190,6 +195,48 @@ const Index = () => {
     }
   };
 
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (registrationData.password !== registrationData.confirmPassword) {
+      toast({
+        title: "Error",
+        description: "Passwords do not match",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      // TODO: Replace with your actual registration API endpoint
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: registrationData.email,
+          password: registrationData.password,
+        }),
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Success",
+          description: "Registration successful! Please login.",
+        });
+        setActiveTab('overview');
+      } else {
+        const data = await response.json();
+        throw new Error(data.message || 'Registration failed');
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Registration failed. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">      
       {/* Header */}
@@ -244,54 +291,27 @@ const Index = () => {
                 <Users className="h-5 w-5" />
                 DAO
               </button>
-              <button
-                onClick={() => setActiveTab('reports')}
-                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
-                  activeTab === 'reports'
-                    ? 'text-cyan-400 font-medium scale-105'
-                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
-                }`}
+
+              {/* Register Link */}
+              <Link
+                to="/register"
+                className="flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4"
               >
-                <FileText className="h-5 w-5" />
-                Reports
-              </button>
-              <button
-                onClick={() => setActiveTab('recovery')}
-                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
-                  activeTab === 'recovery'
-                    ? 'text-cyan-400 font-medium scale-105'
-                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
-                }`}
-              >
-                <Key className="h-5 w-5" />
-                Recovery
-              </button>
-              <button
-                onClick={() => setActiveTab('settings')}
-                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
-                  activeTab === 'settings'
-                    ? 'text-cyan-400 font-medium scale-105'
-                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
-                }`}
-              >
-                <Settings className="h-5 w-5" />
-                Settings
-              </button>
+                <UserPlus className="h-5 w-5" />
+                Register
+              </Link>
             </nav>
 
-            {/* Connect Wallet with enhanced styling */}
-            <div className="transition-transform hover:scale-105 duration-300">
+            {/* Wallet Connect Button */}
+            <div className="hidden md:block">
               <WalletConnect 
+                isConnected={walletConnected}
+                address={currentAddress}
                 onConnect={(address) => {
                   setWalletConnected(true);
                   setCurrentAddress(address);
-                  toast({
-                    title: "Wallet Connected",
-                    description: `Connected to ${address.slice(0, 6)}...${address.slice(-4)}`,
-                  });
                 }}
-                isConnected={walletConnected}
-                address={currentAddress}
+                onDisconnect={() => setWalletConnected(false)}
               />
             </div>
           </div>
@@ -603,46 +623,7 @@ const Index = () => {
                 />
                 <GuardianManager walletAddress={currentAddress} />
               </CardContent>
-            </Card>
-          )}
-
-          {activeTab === 'settings' && (
-            <div className="space-y-6">
-              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-                <CardHeader>
-                  <CardTitle className="text-white">Security Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Real-time Protection</h4>
-                        <p className="text-sm text-gray-400">Enable AI-powered transaction scanning</p>
-                      </div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Auto-block High Risk</h4>
-                        <p className="text-sm text-gray-400">Automatically block transactions with 90%+ risk score</p>
-                      </div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
-                      <div>
-                        <h4 className="text-white font-medium">Community Reports</h4>
-                        <p className="text-sm text-gray-400">Show warnings from community-reported contracts</p>
-                      </div>
-                      <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-              
-              {/* Telegram Settings Integration */}
-              <TelegramSettings walletAddress={currentAddress} />
-            </div>
-          )}
+            </Card>          )}
 
           {activeTab === 'recovery' && (
             <Card className="bg-black/20 backdrop-blur-lg border-white/10">
@@ -659,6 +640,39 @@ const Index = () => {
                 </div>
               </CardContent>
             </Card>
+          )}          {activeTab === 'register' && (
+            <div className="space-y-6">
+              <Card className="bg-black/20 backdrop-blur-lg border-white/10">
+                <CardHeader>
+                  <CardTitle className="text-white">Register New Account</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {/* Registration form will be added here */}
+                    <div className="flex flex-col space-y-4">
+                      <input
+                        type="email"
+                        placeholder="Email Address"
+                        className="bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                      <input
+                        type="password"
+                        placeholder="Password"
+                        className="bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                      <input
+                        type="password"
+                        placeholder="Confirm Password"
+                        className="bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                      />
+                      <Button className="bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600">
+                        Register
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
         </main>
       </div>
@@ -683,7 +697,7 @@ const Index = () => {
       />
 
       {/* Telegram Companion */}
-      <TelegramCompanion />
+      <ChatbotAssistant />
     </div>
   );
 };
