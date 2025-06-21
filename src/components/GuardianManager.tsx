@@ -59,7 +59,9 @@ const GuardianManager: React.FC<{ walletAddress: string | null }> = ({ walletAdd
     } finally {
       setLoading(false);
     }
-  };  // Initialize service and load data when wallet is connected
+  };
+
+  // Initialize service and load data when wallet is connected
   useEffect(() => {
     const initializeService = async () => {
       try {
@@ -201,6 +203,40 @@ const GuardianManager: React.FC<{ walletAddress: string | null }> = ({ walletAdd
     }
   };
 
+  const testGuardians = [
+    "0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8b",
+    "0x8ba1f109551bD432803012645Hac136c22C501",
+    "0x1234567890abcdef1234567890abcdef12345678",
+    "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045"
+  ];
+
+  const addTestGuardians = async () => {
+    try {
+      setLoading(true);
+      for (const guardianAddress of testGuardians) {
+        if (!guardians.some(g => g.address === guardianAddress)) {
+          await socialRecoveryService.addGuardian(guardianAddress);
+          toast({
+            title: "Guardian Added",
+            description: `Added guardian: ${guardianAddress.slice(0, 6)}...${guardianAddress.slice(-4)}`,
+            duration: 3000
+          });
+        }
+      }
+      await loadGuardians();
+    } catch (err) {
+      console.error("Failed to add test guardians:", err);
+      toast({
+        title: "Error",
+        description: "Failed to add test guardians",
+        variant: "destructive",
+        duration: 3000
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   if (!initialized) {
     return (
       <Card>
@@ -226,112 +262,123 @@ const GuardianManager: React.FC<{ walletAddress: string | null }> = ({ walletAdd
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center">
-          <Shield className="h-6 w-6 mr-2" />
-          Social Recovery
-        </CardTitle>
-        <CardDescription>Manage your wallet recovery guardians and requests</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        {/* Add Guardian Form */}
-        <form onSubmit={handleAddGuardian} className="space-y-4">
-          <div className="flex space-x-2">
-            <Input 
-              placeholder="Guardian address (0x...)"
-              value={newGuardian}
-              onChange={e => setNewGuardian(e.target.value)}
-              disabled={loading}
-            />
-            <Button type="submit" disabled={loading || !newGuardian}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
-              Add Guardian
-            </Button>
-          </div>
-        </form>
-
-        {/* Guardians List */}
-        <div className="space-y-4">
-          <h3 className="font-medium">Current Guardians</h3>
-          {guardians.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No guardians added yet</p>
-          ) : (
-            <div className="space-y-2">
-              {guardians.map(guardian => (
-                <div key={guardian.address} className="flex items-center justify-between p-2 rounded-lg border">
-                  <span className="text-sm font-mono">{guardian.address}</span>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleRemoveGuardian(guardian.address)}
-                    disabled={loading}
-                  >
-                    <UserMinus className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="h-5 w-5" />
+            Social Recovery Guardians
+          </CardTitle>
+          <CardDescription>
+            Add or remove guardians who can help recover your wallet in case of emergency.
+            {!loading && guardians.length === 0 && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2"
+                onClick={addTestGuardians}
+              >
+                Add Test Guardians
+              </Button>
+            )}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Add Guardian Form */}
+          <form onSubmit={handleAddGuardian} className="space-y-4">
+            <div className="flex space-x-2">
+              <Input 
+                placeholder="Guardian address (0x...)"
+                value={newGuardian}
+                onChange={e => setNewGuardian(e.target.value)}
+                disabled={loading}
+              />
+              <Button type="submit" disabled={loading || !newGuardian}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                Add Guardian
+              </Button>
             </div>
-          )}
-        </div>
+          </form>
 
-        {/* Recovery Requests */}
-        <div className="space-y-4">
-          <h3 className="font-medium">Recovery Requests</h3>
-          {recoveryRequests.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No active recovery requests</p>
-          ) : (
-            <div className="space-y-2">
-              {recoveryRequests.map(request => (
-                <div key={request.id} className="p-4 rounded-lg border space-y-2">
-                  <div className="flex items-center justify-between">
-                    <div className="space-y-1">
-                      <p className="text-sm">New Owner: <span className="font-mono">{request.proposedOwner}</span></p>
-                      <p className="text-sm text-muted-foreground">
-                        <Clock className="inline h-4 w-4 mr-1" />
-                        Initiated {new Date(request.initiationTime * 1000).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <Badge variant={request.executed ? "default" : "secondary"}>
-                      {request.executed ? (
-                        <><CheckCircle2 className="h-4 w-4 mr-1" /> Executed</>
-                      ) : (
-                        <>{request.approvals} Approvals</>
-                      )}
-                    </Badge>
-                  </div>
-                  {!request.executed && (
+          {/* Guardians List */}
+          <div className="space-y-4">
+            <h3 className="font-medium">Current Guardians</h3>
+            {guardians.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No guardians added yet</p>
+            ) : (
+              <div className="space-y-2">
+                {guardians.map(guardian => (
+                  <div key={guardian.address} className="flex items-center justify-between p-2 rounded-lg border">
+                    <span className="text-sm font-mono">{guardian.address}</span>
                     <Button
-                      className="w-full"
-                      onClick={() => handleApproveRecovery(request.id)}
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleRemoveGuardian(guardian.address)}
                       disabled={loading}
                     >
-                      {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve Recovery"}
+                      <UserMinus className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Initiate Recovery Form */}
-        <form onSubmit={handleInitiateRecovery} className="space-y-4">
-          <h3 className="font-medium">Initiate Recovery</h3>
-          <div className="flex space-x-2">
-            <Input 
-              placeholder="New owner address (0x...)"
-              value={newOwnerAddress}
-              onChange={e => setNewOwnerAddress(e.target.value)}
-              disabled={loading}
-            />
-            <Button type="submit" disabled={loading || !newOwnerAddress}>
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Initiate"}
-            </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
-        </form>
-      </CardContent>
-    </Card>
+
+          {/* Recovery Requests */}
+          <div className="space-y-4">
+            <h3 className="font-medium">Recovery Requests</h3>
+            {recoveryRequests.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No active recovery requests</p>
+            ) : (
+              <div className="space-y-2">
+                {recoveryRequests.map(request => (
+                  <div key={request.id} className="p-4 rounded-lg border space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <p className="text-sm">New Owner: <span className="font-mono">{request.proposedOwner}</span></p>
+                        <p className="text-sm text-muted-foreground">
+                          <Clock className="inline h-4 w-4 mr-1" />
+                          Initiated {new Date(request.initiationTime * 1000).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <Badge variant={request.executed ? "default" : "secondary"}>
+                        {request.executed ? (
+                          <><CheckCircle2 className="h-4 w-4 mr-1" /> Executed</>
+                        ) : (
+                          <>{request.approvals} Approvals</>
+                        )}
+                      </Badge>
+                    </div>
+                    {!request.executed && (                      <Button
+                        className="w-full"
+                        onClick={() => handleApproveRecovery(request.id)}
+                        disabled={loading}
+                      >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Approve Recovery"}
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>          {/* Initiate Recovery Form */}
+          <form onSubmit={handleInitiateRecovery} className="space-y-4">
+            <h3 className="font-medium">Initiate Recovery</h3>
+            <div className="flex space-x-2">
+              <Input 
+                placeholder="New owner address (0x...)"
+                value={newOwnerAddress}
+                onChange={e => setNewOwnerAddress(e.target.value)}
+                disabled={loading}
+              />
+              <Button type="submit" disabled={loading || !newOwnerAddress}>
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Initiate"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 
