@@ -14,19 +14,37 @@
 
 @keyframes orbit-oval {
   0% {
-    transform: rotate(0deg) translateX(180px) translateY(0px) rotate(0deg);
+    transform: rotate(0deg) translateX(160px) translateY(0px) rotate(0deg);
   }
   25% {
-    transform: rotate(90deg) translateX(180px) translateY(-60px) rotate(-90deg);
+    transform: rotate(90deg) translateX(160px) translateY(-40px) rotate(-90deg);
   }
   50% {
-    transform: rotate(180deg) translateX(180px) translateY(0px) rotate(-180deg);
+    transform: rotate(180deg) translateX(160px) translateY(0px) rotate(-180deg);
   }
   75% {
-    transform: rotate(270deg) translateX(180px) translateY(60px) rotate(-270deg);
+    transform: rotate(270deg) translateX(160px) translateY(40px) rotate(-270deg);
   }
   100% {
-    transform: rotate(360deg) translateX(180px) translateY(0px) rotate(-360deg);
+    transform: rotate(360deg) translateX(160px) translateY(0px) rotate(-360deg);
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spin-reverse {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
   }
 }
 
@@ -36,6 +54,67 @@
 
 .animate-orbit-oval {
   animation: orbit-oval 30s linear infinite;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 8s linear infinite;
+}
+
+.animate-spin-reverse {
+  animation: spin-reverse 12s linear infinite;
+}
+
+/* 3D Effects */
+.perspective-1000 {
+  perspective: 1000px;
+}
+
+.rotate-y-12 {
+  transform: rotateY(12deg) rotateX(5deg);
+}
+
+.rotate-y-12:hover {
+  transform: rotateY(15deg) rotateX(8deg) scale(1.05);
+}
+
+/* Modern Wallet Animations */
+@keyframes float-delayed {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes float-reverse {
+  0%, 100% {
+    transform: translateY(-5px);
+  }
+  50% {
+    transform: translateY(5px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(139, 92, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(139, 92, 246, 0.8);
+  }
+}
+
+.animate-float-delayed {
+  animation: float-delayed 3s ease-in-out infinite 1s;
+}
+
+.animate-float-reverse {
+  animation: float-reverse 4s ease-in-out infinite 0.5s;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
 }
 
 @layer base {
