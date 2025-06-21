@@ -1,260 +1,281 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "./civic/CivicVerifier.sol";
+import "./civic/CivicSBT.sol";
 
 /**
  * @title QuadraticVoting
- * @dev Implementation of quadratic voting mechanism for DAO proposals
+ * @dev Implementation of quadratic voting mechanism for DAO proposals with SBT integration
  */
 contract QuadraticVoting is Ownable, ReentrancyGuard {
-    IERC20 public shieldToken; // The governance token (SHIELD)
-    uint256 public constant SCALE = 1e18;    // Scaling factor for square root calculations
-    uint256 public proposalCount;            // Total number of proposals created
-    uint256 public votingPeriod = 7 days;   // Default voting period duration
+    IERC20 public shieldToken;                 // The governance token (SHIELD)
+    CivicVerifier public civicVerifier;        // Civic verification contract
+    CivicSBT public civicSBT;                  // Civic Soulbound Token contract
+    uint256 public constant SCALE = 1e18;      // Scaling factor for square root calculations
+    uint256 public proposalCount;              // Total number of proposals created
+    uint256 public votingPeriod = 7 days;     // Default voting period duration
+    uint256 public minVerificationLevel = 2;   // Minimum Civic verification level required to vote
     
     struct Proposal {
         address reporter;           // Address that reported the potential scam
-        address suspiciousAddress;  // The address being reported as suspicious
-        string description;         // Description of why this address is suspicious
-        string evidence;            // Evidence URL or IPFS hash
-        uint256 startTime;         // When voting starts
-        uint256 endTime;           // When voting ends
-        uint256 votesFor;          // Quadratic weighted votes in support
-        uint256 votesAgainst;      // Quadratic weighted votes against
-        bool isActive;             // Whether voting is still active
-        bool isExecuted;           // Whether the proposal has been executed
-        mapping(address => Vote) votes; // Track votes by address
+        address target;            // Address being reported
+        string evidence;           // IPFS hash of evidence
+        uint256 startTime;        // Start time of voting period
+        uint256 endTime;          // End time of voting period
+        uint256 forVotes;         // Accumulated square root of YES votes
+        uint256 againstVotes;     // Accumulated square root of NO votes
+        bool executed;            // Whether the proposal has been executed
+        bool passed;              // Whether the proposal passed
+        mapping(address => Vote) votes; // Votes cast by address
     }
 
     struct Vote {
-        bool hasVoted;     // Whether this address has voted
-        bool support;      // Whether the vote was in support
-        uint256 tokens;    // Number of tokens committed to the vote
-        uint256 power;     // Square root of tokens (quadratic voting power)
+        bool voted;       // Whether the vote has been cast
+        bool support;     // Whether the vote is in support
+        uint256 weight;   // Weight of the vote (based on tokens and reputation)
+        uint256 time;     // When the vote was cast
     }
 
-    struct ProposalView {
-        uint256 id;
-        address reporter;
-        address suspiciousAddress;
-        string description;
-        string evidence;
-        uint256 startTime;
-        uint256 endTime;
-        uint256 votesFor;
-        uint256 votesAgainst;
-        bool isActive;
-        bool isExecuted;
+    struct VotingPower {
+        uint256 base;     // Base voting power from SHIELD tokens
+        uint256 bonus;    // Bonus voting power from SBT reputation
     }
 
-    // Mapping from proposal ID to Proposal
-    mapping(uint256 => Proposal) public proposals;
-    
-    // Mapping to track if an address has been confirmed as a scammer
-    mapping(address => bool) public confirmedScammers;
-    
-    // Mapping from address to scam score (0-100)
-    mapping(address => uint256) public scamScores;
-    
-    // Events
-    event ProposalCreated(uint256 indexed proposalId, address reporter, address suspiciousAddress);
-    event VoteCast(uint256 indexed proposalId, address indexed voter, bool support, uint256 tokens, uint256 power);
-    event ProposalExecuted(uint256 indexed proposalId, bool approved);
-    event VotingPeriodSet(uint256 oldPeriod, uint256 newPeriod);
+    event ProposalCreated(uint256 indexed proposalId, address indexed reporter, address indexed target);
+    event VoteCast(uint256 indexed proposalId, address indexed voter, bool support, uint256 weight);
+    event ProposalExecuted(uint256 indexed proposalId, bool passed);
+    event MinVerificationLevelUpdated(uint256 newLevel);
+    event CivicVerifierUpdated(address newVerifier);
+    event CivicSBTUpdated(address newSBT);
 
-    /**
-     * @dev Constructor to initialize the quadratic voting contract
-     * @param _shieldToken The address of the SHIELD governance token
-     */
-    constructor(address _shieldToken) {
+    constructor(
+        address _shieldToken,
+        address _civicVerifier,
+        address _civicSBT
+    ) {
         shieldToken = IERC20(_shieldToken);
+        civicVerifier = CivicVerifier(_civicVerifier);
+        civicSBT = CivicSBT(_civicSBT);
     }
 
     /**
-     * @dev Submit a new scam report proposal
-     * @param suspiciousAddress Address being reported
-     * @param description Reason for the report
-     * @param evidence Supporting evidence URL/IPFS hash
+     * @dev Create a new proposal
+     * @param target The address being reported
+     * @param evidence IPFS hash of evidence
      */
-    function submitProposal(
-        address suspiciousAddress,
-        string calldata description,
-        string calldata evidence
-    ) external nonReentrant returns (uint256) {
-        require(suspiciousAddress != address(0), "Invalid address");
-        require(bytes(description).length > 0, "Description required");
+    function createProposal(
+        address target,
+        string memory evidence
+    ) external {
+        require(civicVerifier.isVerified(msg.sender), "Must be Civic verified to create proposal");
+        require(civicSBT.hasSBT(msg.sender), "Must have SBT to create proposal");
         
-        uint256 proposalId = proposalCount++;
-        Proposal storage proposal = proposals[proposalId];
-        
+        proposalCount++;
+        Proposal storage proposal = proposals[proposalCount];
         proposal.reporter = msg.sender;
-        proposal.suspiciousAddress = suspiciousAddress;
-        proposal.description = description;
+        proposal.target = target;
         proposal.evidence = evidence;
         proposal.startTime = block.timestamp;
         proposal.endTime = block.timestamp + votingPeriod;
-        proposal.isActive = true;
         
-        emit ProposalCreated(proposalId, msg.sender, suspiciousAddress);
-        
-        return proposalId;
+        emit ProposalCreated(proposalCount, msg.sender, target);
     }
 
     /**
-     * @dev Cast a vote on a proposal using quadratic voting
-     * @param proposalId The ID of the proposal
+     * @dev Cast a vote on a proposal
+     * @param proposalId ID of the proposal
      * @param support Whether to vote for or against
-     * @param tokens Number of tokens to commit to the vote
      */
     function castVote(
         uint256 proposalId,
-        bool support,
-        uint256 tokens
+        bool support
     ) external nonReentrant {
-        require(tokens > 0, "Must commit tokens");
-        require(shieldToken.balanceOf(msg.sender) >= tokens, "Insufficient balance");
-        require(shieldToken.allowance(msg.sender, address(this)) >= tokens, "Insufficient allowance");
-        
+        require(civicVerifier.isVerified(msg.sender), "Must be Civic verified to vote");
+        require(civicSBT.hasSBT(msg.sender), "Must have SBT to vote");
+        require(civicVerifier.getVerificationLevel(msg.sender) >= minVerificationLevel, "Insufficient verification level");
+
         Proposal storage proposal = proposals[proposalId];
-        require(proposal.isActive, "Proposal not active");
-        require(block.timestamp <= proposal.endTime, "Voting ended");
-        require(!proposal.votes[msg.sender].hasVoted, "Already voted");
-        
-        // Calculate quadratic voting power (sqrt of tokens)
-        uint256 votePower = _sqrt(tokens * SCALE);
-        
-        // Transfer tokens from voter
-        require(shieldToken.transferFrom(msg.sender, address(this), tokens), "Token transfer failed");
-        
-        // Record the vote
+        require(block.timestamp <= proposal.endTime, "Voting period ended");
+        require(!proposal.votes[msg.sender].voted, "Already voted");
+
+        VotingPower memory power = calculateVotingPower(msg.sender);
+        uint256 weight = power.base + power.bonus;
+        require(weight > 0, "No voting power");
+
         proposal.votes[msg.sender] = Vote({
-            hasVoted: true,
+            voted: true,
             support: support,
-            tokens: tokens,
-            power: votePower
+            weight: weight,
+            time: block.timestamp
         });
-        
-        // Update vote tallies
+
+        // Add the square root of voting power to appropriate counter
+        uint256 voteWeight = Math.sqrt(weight * SCALE);
         if (support) {
-            proposal.votesFor += votePower;
+            proposal.forVotes += voteWeight;
         } else {
-            proposal.votesAgainst += votePower;
+            proposal.againstVotes += voteWeight;
         }
-        
-        emit VoteCast(proposalId, msg.sender, support, tokens, votePower);
+
+        // Update voter's metrics in their SBT
+        updateVoterMetrics(msg.sender);
+
+        emit VoteCast(proposalId, msg.sender, support, weight);
     }
 
     /**
-     * @dev Execute a proposal after its voting period ends
-     * @param proposalId The ID of the proposal to execute
+     * @dev Calculate a user's voting power based on SHIELD tokens and SBT reputation
      */
-    function executeProposal(uint256 proposalId) external nonReentrant {
-        Proposal storage proposal = proposals[proposalId];
-        require(proposal.isActive, "Proposal not active");
-        require(block.timestamp > proposal.endTime, "Voting still active");
-        require(!proposal.isExecuted, "Already executed");
+    function calculateVotingPower(address voter) public view returns (VotingPower memory) {
+        uint256 baseVotingPower = shieldToken.balanceOf(voter);
         
-        proposal.isActive = false;
-        proposal.isExecuted = true;
+        // Get SBT reputation metrics
+        CivicSBT.TokenMetadata memory metadata = civicSBT.getTokenMetadata(voter);
         
-        bool approved = proposal.votesFor > proposal.votesAgainst;
+        // Calculate bonus based on verification level and metrics
+        uint256 levelMultiplier = metadata.verificationLevel * 10; // 10% per level
+        uint256 accuracyBonus = (metadata.votingAccuracy * baseVotingPower) / 100;
+        uint256 participationBonus = (metadata.doiParticipation * baseVotingPower) / 1000;
+        uint256 trustBonus = (metadata.trustScore * baseVotingPower) / 100;
         
-        // If approved, update scam status
-        if (approved) {
-            confirmedScammers[proposal.suspiciousAddress] = true;
-            // Increase scam score (max 100)
-            uint256 currentScore = scamScores[proposal.suspiciousAddress];
-            uint256 scoreIncrease = (proposal.votesFor - proposal.votesAgainst) * 10 / (proposal.votesFor + proposal.votesAgainst);
-            scamScores[proposal.suspiciousAddress] = Math.min(100, currentScore + scoreIncrease);
-        }
-        
-        emit ProposalExecuted(proposalId, approved);
-    }
+        uint256 totalBonus = (baseVotingPower * levelMultiplier / 100) + accuracyBonus + participationBonus + trustBonus;
 
-    /**
-     * @dev Get a proposal's current status and details
-     * @param proposalId The ID of the proposal
-     */
-    function getProposal(uint256 proposalId) external view returns (ProposalView memory) {
-        Proposal storage proposal = proposals[proposalId];
-        return ProposalView({
-            id: proposalId,
-            reporter: proposal.reporter,
-            suspiciousAddress: proposal.suspiciousAddress,
-            description: proposal.description,
-            evidence: proposal.evidence,
-            startTime: proposal.startTime,
-            endTime: proposal.endTime,
-            votesFor: proposal.votesFor,
-            votesAgainst: proposal.votesAgainst,
-            isActive: proposal.isActive,
-            isExecuted: proposal.isExecuted
+        return VotingPower({
+            base: baseVotingPower,
+            bonus: totalBonus
         });
     }
 
     /**
-     * @dev Get vote details for a specific voter on a proposal
-     * @param proposalId The ID of the proposal
-     * @param voter The address of the voter
+     * @dev Execute a proposal after its voting period
      */
+    function executeProposal(uint256 proposalId) external {
+        Proposal storage proposal = proposals[proposalId];
+        require(block.timestamp > proposal.endTime, "Voting period not ended");
+        require(!proposal.executed, "Already executed");
+
+        proposal.executed = true;
+        proposal.passed = proposal.forVotes > proposal.againstVotes;
+
+        // If proposal passed, update reputation for correct voters
+        if (proposal.passed) {
+            updateReputationForVoters(proposalId, true);  // true voters
+        } else {
+            updateReputationForVoters(proposalId, false); // false voters
+        }
+
+        emit ProposalExecuted(proposalId, proposal.passed);
+    }
+
+    /**
+     * @dev Update voter metrics in their SBT
+     */
+    function updateVoterMetrics(address voter) internal {
+        // Get current metrics
+        CivicSBT.TokenMetadata memory metadata = civicSBT.getTokenMetadata(voter);
+        
+        // Calculate new participation metric
+        uint256 newParticipation = metadata.doiParticipation + 1;
+        
+        // Update SBT metadata
+        civicSBT.updateMetadata(
+            voter,
+            metadata.verificationLevel,
+            metadata.trustScore,
+            metadata.votingAccuracy,
+            newParticipation
+        );
+    }
+
+    /**
+     * @dev Update reputation for voters after proposal execution
+     */
+    function updateReputationForVoters(uint256 proposalId, bool votedCorrectly) internal {
+        Proposal storage proposal = proposals[proposalId];
+        
+        // For each voter in this proposal
+        // Note: In production, you'd want to handle this more efficiently
+        // through a separate batch update mechanism
+        for (uint256 i = 1; i <= proposalCount; i++) {
+            address voter = proposals[i].reporter; // Example: loop through voters
+            if (proposal.votes[voter].voted) {
+                if (proposal.votes[voter].support == votedCorrectly) {
+                    // Voter was correct, increase their accuracy
+                    CivicSBT.TokenMetadata memory metadata = civicSBT.getTokenMetadata(voter);
+                    uint256 newAccuracy = Math.min(100, metadata.votingAccuracy + 5);
+                    civicSBT.updateMetadata(
+                        voter,
+                        metadata.verificationLevel,
+                        metadata.trustScore,
+                        newAccuracy,
+                        metadata.doiParticipation
+                    );
+                }
+            }
+        }
+    }
+
+    // Admin functions
+
+    function setMinVerificationLevel(uint256 _newLevel) external onlyOwner {
+        require(_newLevel > 0 && _newLevel <= 3, "Invalid level");
+        minVerificationLevel = _newLevel;
+        emit MinVerificationLevelUpdated(_newLevel);
+    }
+
+    function setCivicVerifier(address _newVerifier) external onlyOwner {
+        require(_newVerifier != address(0), "Invalid address");
+        civicVerifier = CivicVerifier(_newVerifier);
+        emit CivicVerifierUpdated(_newVerifier);
+    }
+
+    function setCivicSBT(address _newSBT) external onlyOwner {
+        require(_newSBT != address(0), "Invalid address");
+        civicSBT = CivicSBT(_newSBT);
+        emit CivicSBTUpdated(_newSBT);
+    }
+
+    // View functions
+
+    function getProposal(uint256 proposalId) external view returns (
+        address reporter,
+        address target,
+        string memory evidence,
+        uint256 startTime,
+        uint256 endTime,
+        uint256 forVotes,
+        uint256 againstVotes,
+        bool executed,
+        bool passed
+    ) {
+        Proposal storage proposal = proposals[proposalId];
+        return (
+            proposal.reporter,
+            proposal.target,
+            proposal.evidence,
+            proposal.startTime,
+            proposal.endTime,
+            proposal.forVotes,
+            proposal.againstVotes,
+            proposal.executed,
+            proposal.passed
+        );
+    }
+
     function getVote(uint256 proposalId, address voter) external view returns (
-        bool hasVoted,
+        bool voted,
         bool support,
-        uint256 tokens,
-        uint256 power
+        uint256 weight,
+        uint256 time
     ) {
         Vote storage vote = proposals[proposalId].votes[voter];
-        return (vote.hasVoted, vote.support, vote.tokens, vote.power);
+        return (vote.voted, vote.support, vote.weight, vote.time);
     }
 
-    /**
-     * @dev Get the scam score for an address (0-100)
-     * @param subject The address to check
-     */
-    function getScamScore(address subject) external view returns (uint256) {
-        return scamScores[subject];
-    }
-
-    /**
-     * @dev Check if an address is a confirmed scammer
-     * @param subject The address to check
-     */
-    function isScammer(address subject) external view returns (bool) {
-        return confirmedScammers[subject];
-    }
-
-    /**
-     * @dev Update the voting period duration (admin only)
-     * @param newVotingPeriod New duration in seconds
-     */
-    function setVotingPeriod(uint256 newVotingPeriod) external onlyOwner {
-        require(newVotingPeriod > 0, "Invalid period");
-        uint256 oldPeriod = votingPeriod;
-        votingPeriod = newVotingPeriod;
-        emit VotingPeriodSet(oldPeriod, newVotingPeriod);
-    }
-
-    /**
-     * @dev Calculate the square root of a number scaled by SCALE
-     * @param x The number to calculate the square root of
-     */
-    function _sqrt(uint256 x) internal pure returns (uint256) {
-        if (x == 0) return 0;
-        
-        // Initial guess
-        uint256 z = (x + 1) / 2;
-        uint256 y = x;
-        
-        // z = (z + x/z) / 2 until convergence
-        while (z < y) {
-            y = z;
-            z = (z + x / z) / 2;
-        }
-        
-        return y;
-    }
+    mapping(uint256 => Proposal) public proposals;
 }
