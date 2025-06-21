@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { ethers } from 'ethers';
-import { getSigner } from '@/web3/wallet';
+import walletConnector, { getSigner } from '@/web3/wallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Send, AlertCircle } from 'lucide-react';
+import { Loader2, Send, AlertCircle, Shield } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Switch } from '@/components/ui/switch';
 import TransactionInterceptor from './TransactionInterceptor';
 
 interface SendTransactionProps {
@@ -19,6 +20,7 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState('');
   const [gasPrice, setGasPrice] = useState('20'); // Default gas price
+  const [useMEVProtection, setUseMEVProtection] = useState(true);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -609,6 +611,38 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
                 onChange={handleAmountChange}
                 required
               />
+            </div>
+
+            <div className="grid w-full items-center gap-2">
+              <Label htmlFor="gasPrice">Gas Price (Gwei)</Label>
+              <Input
+                id="gasPrice"
+                type="number"
+                step="any"
+                min="0"
+                placeholder="20"
+                value={gasPrice}
+                onChange={(e) => setGasPrice(e.target.value)}
+                required
+              />
+            </div>
+
+            <div className="grid w-full items-center gap-2">
+              <Label htmlFor="mevProtection" className="flex items-center">
+                <span>MEV Protection</span>
+                <Shield className="ml-2 h-5 w-5 text-blue-500" />
+              </Label>
+              <Switch
+                id="mevProtection"
+                checked={useMEVProtection}
+                onCheckedChange={setUseMEVProtection}
+                className="mt-2"
+              />
+              <p className="text-sm text-gray-500 mt-1">
+                {useMEVProtection
+                  ? "MEV protection is enabled. Your transaction will be protected against MEV bots."
+                  : "MEV protection is disabled. Your transaction may be vulnerable to MEV bots."}
+              </p>
             </div>
 
             {error && (
