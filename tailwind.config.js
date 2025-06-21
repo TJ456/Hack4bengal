@@ -7,6 +7,7 @@ module.exports = {
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
   ],
+  prefix: "",
   theme: {
     container: {
       center: true,
@@ -56,27 +57,52 @@ module.exports = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      keyframes: {
-        "float": {
-          "0%, 100%": { transform: "translateY(0px)" },
-          "50%": { transform: "translateY(-10px)" },
-        },
-        "orbit-oval": {
-          "0%": { transform: "rotate(0deg) translateX(180px) translateY(0px) rotate(0deg)" },
-          "25%": { transform: "rotate(90deg) translateX(180px) translateY(-60px) rotate(-90deg)" },
-          "50%": { transform: "rotate(180deg) translateX(180px) translateY(0px) rotate(-180deg)" },
-          "75%": { transform: "rotate(270deg) translateX(180px) translateY(60px) rotate(-270deg)" },
-          "100%": { transform: "rotate(360deg) translateX(180px) translateY(0px) rotate(-360deg)" },
-        },
-        "pulse": {
-          "0%, 100%": { opacity: "1" },
-          "50%": { opacity: "0.5" },
-        }
-      },
       animation: {
-        "float": "float 3s ease-in-out infinite",
-        "orbit-oval": "orbit-oval 30s linear infinite",
-        "pulse": "pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite",
+        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+        'shield-rotate': 'shield-rotate 2s ease-in-out infinite',
+        'shield-scan': 'shield-scan 2s ease-in-out infinite',
+        'neural-glow': 'neural-glow 4s ease-in-out infinite',
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: "0" },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: "0" },
+        },
+        'shield-rotate': {
+          '0%, 100%': {
+            transform: 'rotate(-5deg)',
+          },
+          '50%': {
+            transform: 'rotate(5deg)',
+          },
+        },
+        'shield-scan': {
+          '0%': {
+            transform: 'translateY(0)',
+            opacity: '0',
+          },
+          '50%': {
+            opacity: '0.5',
+          },
+          '100%': {
+            transform: 'translateY(-20px)',
+            opacity: '0',
+          },
+        },
+        'neural-glow': {
+          '0%, 100%': {
+            opacity: '0.5',
+            transform: 'scale(1)',
+          },
+          '50%': {
+            opacity: '1',
+            transform: 'scale(1.05)',
+          },
+        },
       },
     },
   },

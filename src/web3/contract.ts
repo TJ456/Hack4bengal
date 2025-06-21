@@ -1,10 +1,26 @@
 // Smart Contract Interaction Module for UnhackableWallet
 // Handles all interactions with deployed smart contracts
 
+interface ProposalExecutedEventArgs extends Result {
+  proposalId: bigint;
+  passed: boolean;
+}
+
+interface VoteCastEventArgs extends Result {
+  proposalId: bigint;
+  voter: string;
+  support: boolean;
+  tokens: bigint;
+  power: bigint;
+}
+
+// Imports
 import { Contract, formatUnits, parseUnits, ethers } from 'ethers';
 import walletConnector from './wallet';
 import UnhackableWalletABI from './abi/UnhackableWallet.json';
 import { shortenAddress, isValidAddress } from './utils';
+import EventEmitter from 'events';
+import type { Result } from 'ethers';
 
 // ABI for the QuadraticVoting contract
 const QUADRATIC_VOTING_ABI = [
@@ -46,7 +62,7 @@ const CONTRACT_ADDRESSES: { [chainId: string]: string } = {
 /**
  * Smart contract interaction class for UnhackableWallet
  */
-class ContractService {
+class ContractService extends EventEmitter {
   private contractInstance: Contract | null = null;
 
   private QUADRATIC_VOTING_ADDRESS = '0x...'; // Replace with deployed contract address
@@ -65,6 +81,23 @@ class ContractService {
     };
   }
 
+  // Forward contract events to EventEmitter
+  private setupEventForwarding() {
+    if (!this.votingContract) return;
+    
+    this.votingContract.on('ProposalCreated', (...args) => {
+      this.emit('ProposalCreated', ...args);
+    });
+    
+    this.votingContract.on('VoteCast', (...args) => {
+      this.emit('VoteCast', ...args);
+    });
+    
+    this.votingContract.on('ProposalExecuted', (...args) => {
+      this.emit('ProposalExecuted', ...args);
+    });
+  }
+
   private async init() {
     if (!walletConnector.provider || !walletConnector.signer) {
       throw new Error('Wallet not connected');
@@ -79,6 +112,9 @@ class ContractService {
       SHIELD_TOKEN_ABI,
       walletConnector.signer
     );
+    
+    // Set up event forwarding
+    this.setupEventForwarding();
   }
 
   /**
@@ -416,6 +452,51 @@ class ContractService {
     } catch (err) {
       console.error('Error calculating scam score:', err);
       return 0;
+    }
+  }
+
+  public async getUserVotingStats(address: string) {
+    if (!this.votingContract) await this.init();
+    
+    try {
+      // Get all votes cast by the user
+      const voteFilter = this.votingContract?.filters.VoteCast(null, address);
+      const voteEvents = await this.votingContract?.queryFilter(voteFilter);
+      
+      // Get all executed proposals
+      const executedFilter = this.votingContract?.filters.ProposalExecuted();
+      const executedEvents = await this.votingContract?.queryFilter(executedFilter);
+      
+      // Map proposal outcomes
+      const proposalOutcomes = new Map(
+        executedEvents?.map((event) => {
+          const args = (event as ethers.EventLog).args as unknown as ProposalExecutedEventArgs;
+          return [args.proposalId.toString(), args.passed];
+        })
+      );
+      
+      // Calculate stats
+      let totalVotes = 0;
+      let correctVotes = 0;
+      
+      voteEvents?.forEach((event) => {
+        const args = (event as ethers.EventLog).args as unknown as VoteCastEventArgs;
+        const outcome = proposalOutcomes.get(args.proposalId.toString());
+        
+        // Only count votes on executed proposals
+        if (typeof outcome !== 'undefined') {
+          totalVotes++;
+          if (args.support === outcome) correctVotes++;
+        }
+      });
+      
+      return {
+        totalVotes,
+        accuracy: totalVotes > 0 ? Math.round((correctVotes / totalVotes) * 100) : 0
+      };
+    } catch (err) {
+      console.error('Error getting user voting stats:', err);
+      return { totalVotes: 0, accuracy: 0 };
     }
   }
 }
