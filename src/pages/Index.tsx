@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Shield, AlertTriangle, CheckCircle, Zap, Users, FileText, Settings, PieChart, Key } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import { useCivicStore } from '@/stores/civicStore';
 import SimpleCivicAuth from '@/components/civic/SimpleCivicAuth';
 
 const Index = () => {
+  const navigate = useNavigate();
   const [walletConnected, setWalletConnected] = useState(false);
   const [currentAddress, setCurrentAddress] = useState('');
   const [threatLevel, setThreatLevel] = useState<'safe' | 'warning' | 'danger'>('safe');
@@ -181,6 +182,14 @@ const Index = () => {
     });
   };
   
+  const handleNavigation = (item: { id: string; label: string }) => {
+    if (item.id === 'register') {
+      navigate('/register');
+    } else {
+      setActiveTab(item.id);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
@@ -216,9 +225,9 @@ const Index = () => {
       <div className="flex">
         {/* Sidebar */}
         <aside className="w-64 min-h-screen bg-black/20 backdrop-blur-lg border-r border-white/10">
-          <nav className="p-6 space-y-2">
-            {[
+          <nav className="p-6 space-y-2">            {[
               { id: 'overview', label: 'Overview', icon: Shield },
+              { id: 'register', label: 'Register', icon: Key },
               { id: 'analytics', label: 'Wallet Analytics', icon: PieChart },
               { id: 'dao', label: 'DAO Voting', icon: Users },
               { id: 'reports', label: 'Threat Reports', icon: FileText },
@@ -227,7 +236,7 @@ const Index = () => {
             ].map((item) => (
               <button
                 key={item.id}
-                onClick={() => setActiveTab(item.id)}
+                onClick={() => handleNavigation(item)}
                 className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-200 ${
                   activeTab === item.id
                     ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
