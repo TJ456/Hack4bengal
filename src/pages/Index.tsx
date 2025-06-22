@@ -279,8 +279,7 @@ const Index = () => {
               >
                 <PieChart className="h-5 w-5" />
                 Analytics
-              </button>
-              <button
+              </button>              <button
                 onClick={() => setActiveTab('dao')}
                 className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
                   activeTab === 'dao'
@@ -290,6 +289,30 @@ const Index = () => {
               >
                 <Users className="h-5 w-5" />
                 DAO
+              </button>
+
+              <button
+                onClick={() => setActiveTab('reports')}
+                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'reports'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <FileText className="h-5 w-5" />
+                Reports
+              </button>
+
+              <button
+                onClick={() => setActiveTab('recovery')}
+                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'recovery'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Key className="h-5 w-5" />
+                Guardian
               </button>
 
               {/* Register Link */}
@@ -311,7 +334,6 @@ const Index = () => {
                   setWalletConnected(true);
                   setCurrentAddress(address);
                 }}
-                onDisconnect={() => setWalletConnected(false)}
               />
             </div>
           </div>
@@ -335,10 +357,40 @@ const Index = () => {
               </h1>
               <p className="text-xl text-gray-300 animate-fade-in-up animation-delay-200">
                 The world's first AI-powered smart wallet with real-time threat detection and autonomous security features.
-              </p>
-              <div className="flex flex-wrap gap-4 justify-center lg:justify-start animate-fade-in-up animation-delay-300">
-                <Button className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-6 text-lg rounded-xl transition-all hover:scale-105">
-                  Get Started
+              </p>              <div className="flex flex-wrap gap-4 justify-center lg:justify-start animate-fade-in-up animation-delay-300">
+                <Button 
+                  onClick={() => {
+                    if (!walletConnected) {
+                      // Use the window.ethereum provider to request account access
+                      if (typeof window.ethereum !== 'undefined') {
+                        window.ethereum.request({ method: 'eth_requestAccounts' })
+                          .then((accounts: string[]) => {
+                            setWalletConnected(true);
+                            setCurrentAddress(accounts[0]);
+                            toast({
+                              title: "Wallet Connected",
+                              description: "Your wallet has been successfully connected!",
+                            });
+                          })
+                          .catch((error: Error) => {
+                            toast({
+                              title: "Connection Failed",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          });
+                      } else {
+                        toast({
+                          title: "Wallet Not Found",
+                          description: "Please install MetaMask or another Web3 wallet.",
+                          variant: "destructive",
+                        });
+                      }
+                    }
+                  }}
+                  className="bg-cyan-500 hover:bg-cyan-600 text-white px-8 py-6 text-lg rounded-xl transition-all hover:scale-105"
+                >
+                  {walletConnected ? 'Connected ✓' : 'Get Started'}
                 </Button>
                 <Button variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10 px-8 py-6 text-lg rounded-xl transition-all hover:scale-105">
                   Watch Demo
@@ -543,67 +595,137 @@ const Index = () => {
             <div className="space-y-6">
               <DAOPanel />
             </div>
-          )}
+          )}          {activeTab === 'reports' && (
+            <div className="space-y-6">
+              <Card className="group bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <span className="transform group-hover:scale-110 transition-transform">Community Threat Reports</span>
+                    <div className="relative h-6 w-6">
+                      <div className="absolute inset-0 bg-purple-500 rounded-full opacity-20 group-hover:animate-ping"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">🛡️</div>
+                    </div>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-6">
+                    <p className="text-gray-400 group-hover:text-gray-300 transition-colors">
+                      Submit and verify suspicious contracts and activities. All reports are verified through DAO voting to ensure accuracy.
+                      <span className="text-purple-400 font-medium group-hover:animate-pulse"> Earn +5 Shield Points for verified reports!</span>
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Active Reports Section */}
+                      <div className="group/card p-4 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all duration-300 hover:scale-[1.02]">
+                        <h4 className="text-white font-medium mb-4 flex items-center gap-2">
+                          <span>Active Reports</span>
+                          <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
+                        </h4>
+                        <div className="text-sm text-gray-400 space-y-3">
+                          <div 
+                            className="flex flex-col p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                            onClick={() => handleDAOVote(1, 'approve')}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="group-hover/card:text-white transition-colors">Token Drainer Contract</span>
+                              <Badge className="bg-red-500/20 text-red-400">Voting Active</Badge>
+                            </div>
+                            <p className="text-xs mt-2 text-gray-500">Contract: 0x7f...3a2b</p>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500"></div>
+                              </div>
+                              <span className="text-xs">75% Verified</span>
+                            </div>
+                          </div>
+                          <div 
+                            className="flex flex-col p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
+                            onClick={() => handleDAOVote(2, 'approve')}
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="group-hover/card:text-white transition-colors">Malicious Airdrop</span>
+                              <Badge className="bg-yellow-500/20 text-yellow-400">Needs Votes</Badge>
+                            </div>
+                            <p className="text-xs mt-2 text-gray-500">Contract: 0x9c...4d1e</p>
+                            <div className="mt-2 flex items-center gap-2">
+                              <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
+                                <div className="h-full w-1/3 bg-gradient-to-r from-cyan-500 to-purple-500"></div>
+                              </div>
+                              <span className="text-xs">33% Verified</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
 
-          {activeTab === 'reports' && (            <Card className="group bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20">
-              <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <span className="transform group-hover:scale-110 transition-transform">Community Threat Reports</span>
-                  <div className="relative h-6 w-6">
-                    <div className="absolute inset-0 bg-purple-500 rounded-full opacity-20 group-hover:animate-ping"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">🛡️</div>
-                  </div>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
-                  <p className="text-gray-400 group-hover:text-gray-300 transition-colors">
-                    Help protect the Web3 community by reporting suspicious contracts and activities.
-                    <span className="text-purple-400 font-medium group-hover:animate-pulse"> Earn +5 Shield Points per verified report!</span>
-                  </p>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {/* Recent reports with enhanced styling */}
-                    <div className="group/card p-4 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all duration-300 hover:scale-[1.02]">
-                      <h4 className="text-white font-medium mb-4 flex items-center gap-2">
-                        <span>Recent Reports</span>
-                        <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
-                      </h4>
-                      <div className="text-sm text-gray-400 space-y-3">
-                        <div className="flex justify-between items-center p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                          <span className="group-hover/card:text-white transition-colors">Token Drainer</span>
-                          <Badge className="bg-red-500/20 text-red-400 group-hover/card:animate-pulse">High Risk</Badge>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                          <span className="group-hover/card:text-white transition-colors">Fake Airdrop</span>
-                          <Badge className="bg-yellow-500/20 text-yellow-400 group-hover/card:animate-pulse">Medium Risk</Badge>
-                        </div>
-                        <div className="flex justify-between items-center p-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors">
-                          <span className="group-hover/card:text-white transition-colors">Rug Pull Contract</span>
-                          <Badge className="bg-green-500/20 text-green-400 group-hover/card:animate-pulse">Resolved</Badge>
+                      {/* Submit Report Form */}
+                      <div className="group/card p-4 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all duration-300 hover:scale-[1.02]">
+                        <h4 className="text-white font-medium mb-4 flex items-center gap-2">
+                          <span>Submit New Report</span>
+                          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
+                        </h4>
+                        <div className="space-y-4">
+                          <input
+                            type="text"
+                            placeholder="Contract Address"
+                            className="w-full bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
+                          />
+                          <select className="w-full bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
+                            <option value="">Select Threat Type</option>
+                            <option value="drainer">Token Drainer</option>
+                            <option value="phishing">Phishing Contract</option>
+                            <option value="rugpull">Potential Rug Pull</option>
+                            <option value="scam">Scam Token</option>
+                          </select>
+                          <textarea
+                            placeholder="Describe the suspicious behavior..."
+                            className="w-full bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 h-24 resize-none"
+                          ></textarea>
+                          <Button 
+                            className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 rounded-xl py-3"
+                            onClick={handleThreatReport}
+                          >
+                            <span className="flex items-center justify-center gap-2">
+                              <span className="text-lg">Submit for DAO Review</span>
+                              <span className="text-sm bg-white/20 px-2 py-1 rounded-full group-hover/card:animate-pulse">+5 Points</span>
+                            </span>
+                          </Button>
                         </div>
                       </div>
                     </div>
-                    {/* Enhanced submit button */}
-                    <div className="group/card p-4 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all duration-300 hover:scale-[1.02]">
-                      <h4 className="text-white font-medium mb-4 flex items-center gap-2">
-                        <span>Submit New Report</span>
-                        <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-                      </h4>
-                      <Button 
-                        className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 rounded-xl py-3"
-                        onClick={handleThreatReport}
-                      >
-                        <span className="flex items-center justify-center gap-2">
-                          <span className="text-lg">Report Suspicious Activity</span>
-                          <span className="text-sm bg-white/20 px-2 py-1 rounded-full group-hover/card:animate-pulse">+5 Points</span>
-                        </span>
-                      </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Verified Threats Card */}
+              <Card className="group bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-green-500/20">
+                <CardHeader>
+                  <CardTitle className="text-white flex items-center gap-2">
+                    <span className="transform group-hover:scale-110 transition-transform">Verified Threats</span>
+                    <CheckCircle className="h-5 w-5 text-green-500" />
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="flex justify-between items-center p-3 rounded-lg bg-white/5">
+                        <div className="flex flex-col">
+                          <span className="text-white">Rug Pull Contract</span>
+                          <span className="text-xs text-gray-500">0x8d...5f2c</span>
+                        </div>
+                        <Badge className="bg-green-500/20 text-green-400">100% Verified</Badge>
+                      </div>
+                      <div className="flex justify-between items-center p-3 rounded-lg bg-white/5">
+                        <div className="flex flex-col">
+                          <span className="text-white">Malicious NFT Mint</span>
+                          <span className="text-xs text-gray-500">0x3a...9e4d</span>
+                        </div>
+                        <Badge className="bg-green-500/20 text-green-400">100% Verified</Badge>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}          {activeTab === 'recovery' && (
+                </CardContent>
+              </Card>
+            </div>
+          )}{activeTab === 'recovery' && (
             <Card className="bg-black/20 backdrop-blur-lg border-white/10">
               <CardHeader>
                 <CardTitle className="text-white flex items-center space-x-2">

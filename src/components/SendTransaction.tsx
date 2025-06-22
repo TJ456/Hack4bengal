@@ -9,6 +9,7 @@ import { Loader2, Send, AlertCircle, Shield } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import TransactionInterceptor from './TransactionInterceptor';
+import FaceVerificationModal from './FaceVerificationModal';
 
 interface SendTransactionProps {
   onSuccess?: (txHash: string) => void;
@@ -21,6 +22,7 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
   const [amount, setAmount] = useState('');
   const [gasPrice, setGasPrice] = useState('20'); // Default gas price
   const [useMEVProtection, setUseMEVProtection] = useState(true);
+  const [showFaceVerification, setShowFaceVerification] = useState(false);
 
   // UI state
   const [loading, setLoading] = useState(false);
@@ -494,7 +496,8 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
   // Handle proceed anyway after fraud warning
   const handleProceedAnyway = () => {
     setShowFraudWarning(false);
-    sendTransaction();
+    // Show face verification instead of directly sending transaction
+    setShowFaceVerification(true);
   };
 
   // Handle block transaction after fraud warning
@@ -506,15 +509,25 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
   // Handle proceed after ML success assessment
   const handleProceedAfterSuccess = () => {
     setShowMLSuccess(false);
-    console.log("💳 User confirmed to proceed after ML success - CALLING METAMASK");
-    console.log("🚨 IMPORTANT: MetaMask should appear NOW");
+    // Show face verification instead of directly sending transaction
+    setShowFaceVerification(true);
+  };
+
+  // Handle successful face verification
+  const handleFaceVerificationSuccess = () => {
+    setShowFaceVerification(false);
     sendTransaction();
   };
 
-  // Handle cancel after ML success assessment
-  const handleCancelAfterSuccess = () => {
-    setShowMLSuccess(false);
-    setError('Transaction cancelled by user');
+  // Handle failed face verification
+  const handleFaceVerificationError = (error: string) => {
+    setError(`Face verification failed: ${error}`);
+    setLoading(false);
+  };
+
+  // Handle face verification modal close
+  const handleFaceVerificationClose = () => {
+    setShowFaceVerification(false);
     setLoading(false);
   };
 
@@ -719,11 +732,21 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
         />
       )}
 
+      {/* Face Verification Modal */}
+      {showFaceVerification && (
+        <FaceVerificationModal
+          onClose={handleFaceVerificationClose}
+          onSuccess={handleFaceVerificationSuccess}
+          onError={handleFaceVerificationError}
+          walletAddress={recipient}
+        />
+      )}
+
       {/* ML Success assessment modal */}
       {showMLSuccess && mlSuccessData && (
         <TransactionInterceptor
           onClose={handleProceedAfterSuccess}
-          onBlock={handleCancelAfterSuccess}
+          onBlock={handleFaceVerificationClose}
           toAddress={recipient}
           fromAddress={mlSuccessData.from_address || ''}
           value={parseFloat(amount)}
