@@ -256,7 +256,7 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
           console.warn("ML API request timed out after 20 seconds");
         }, 20000); // 20 second timeout
 
-        const response = await fetch('https://ml-fraud-transaction-detection.onrender.com/predict', {
+        const response = await fetch('https://dl-fraud-detection.onrender.com/predict', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'

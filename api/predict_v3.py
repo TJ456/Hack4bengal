@@ -3,7 +3,7 @@ from http.server import BaseHTTPRequestHandler
 import requests
 
 # External ML API endpoint - hardcoded since we will only use this one
-EXTERNAL_ML_API = "https://ml-fraud-transaction-detection.onrender.com/predict"
+EXTERNAL_ML_API = "https://dl-fraud-detection.onrender.com/predict"
 
 class TransactionPredictor:
     def __init__(self):

@@ -65,7 +65,7 @@ If you prefer to deploy manually:
 4. **Add environment variables** in the dashboard:
    ```
    DATABASE_URL=postgresql://username:password@hostname:port/database
-   ML_MODEL_URL=https://ml-fraud-transaction-detection.onrender.com/predict
+   ML_MODEL_URL=https://dl-fraud-detection.onrender.com/predict
    JWT_SECRET=your-secure-jwt-secret
    ENVIRONMENT=production
    TELEGRAM_TOKEN=your-telegram-bot-token

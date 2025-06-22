@@ -11,7 +11,7 @@ import sys
 from typing import Dict, Any, Optional
 
 # Configuration
-ML_API_URL = "https://ml-fraud-transaction-detection.onrender.com/predict"
+ML_API_URL = "https://dl-fraud-detection.onrender.com/predict"
 MAX_RETRIES = 3
 INITIAL_RETRY_DELAY = 5  # seconds
 MAX_RETRY_DELAY = 20  # seconds

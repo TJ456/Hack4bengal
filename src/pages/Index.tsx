@@ -15,6 +15,8 @@ import AILearningFeedback from '@/components/AILearningFeedback';
 import ChatbotAssistant from '@/components/ChatbotAssistant';
 import WalletAnalytics from '@/components/WalletAnalytics';
 import GuardianManager from '@/components/GuardianManager';
+import ThreatReport from '@/components/ThreatReport';
+import GuardianSettings from '@/components/GuardianSettings';
 import { useCivicStore } from '@/stores/civicStore';
 import SimpleCivicAuth from '@/components/civic/SimpleCivicAuth';
 
@@ -270,6 +272,28 @@ const Index = () => {
                 Overview
               </button>
               <button
+                onClick={() => setActiveTab('report')}
+                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'report'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <AlertTriangle className="h-5 w-5" />
+                Threat Report
+              </button>
+              <button
+                onClick={() => setActiveTab('guardian')}
+                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
+                  activeTab === 'guardian'
+                    ? 'text-cyan-400 font-medium scale-105'
+                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
+                }`}
+              >
+                <Key className="h-5 w-5" />
+                Guardian
+              </button>
+              <button
                 onClick={() => setActiveTab('analytics')}
                 className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
                   activeTab === 'analytics'
@@ -279,7 +303,8 @@ const Index = () => {
               >
                 <PieChart className="h-5 w-5" />
                 Analytics
-              </button>              <button
+              </button>
+              <button
                 onClick={() => setActiveTab('dao')}
                 className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
                   activeTab === 'dao'
@@ -289,30 +314,6 @@ const Index = () => {
               >
                 <Users className="h-5 w-5" />
                 DAO
-              </button>
-
-              <button
-                onClick={() => setActiveTab('reports')}
-                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
-                  activeTab === 'reports'
-                    ? 'text-cyan-400 font-medium scale-105'
-                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
-                }`}
-              >
-                <FileText className="h-5 w-5" />
-                Reports
-              </button>
-
-              <button
-                onClick={() => setActiveTab('recovery')}
-                className={`flex items-center gap-2 px-3 py-2 transition-all duration-300 hover:scale-105 ${
-                  activeTab === 'recovery'
-                    ? 'text-cyan-400 font-medium scale-105'
-                    : 'text-gray-400 hover:text-white hover:underline decoration-cyan-400/50 underline-offset-4'
-                }`}
-              >
-                <Key className="h-5 w-5" />
-                Guardian
               </button>
 
               {/* Register Link */}
@@ -328,19 +329,17 @@ const Index = () => {
             {/* Wallet Connect Button */}
             <div className="hidden md:block">
               <WalletConnect 
-                isConnected={walletConnected}
-                address={currentAddress}
-                onConnect={(address) => {
-                  setWalletConnected(true);
-                  setCurrentAddress(address);
-                }}
+              isConnected={walletConnected}
+              address={currentAddress}
+              onConnect={(address) => {
+                setWalletConnected(true);
+                setCurrentAddress(address);
+              }}
               />
             </div>
           </div>
         </div>
-      </header>
-
-      {/* Hero Landing Section */}
+      </header>      {/* Hero Landing Section */}
       <div className="relative overflow-hidden">
         {/* Animated background elements */}
         <div className="absolute inset-0 z-0">
@@ -349,19 +348,19 @@ const Index = () => {
         </div>
 
         <div className="container mx-auto px-6 py-16 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-12">
-            {/* Left side content */}
-            <div className="flex-1 space-y-8 text-center lg:text-left">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+            {/* Left Column - Content */}
+            <div className="space-y-8 text-center md:text-left">
               <h1 className="text-5xl lg:text-6xl font-bold text-white leading-tight animate-fade-in-up">
                 Secure Your <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-purple-400">Digital Assets</span> with AI
               </h1>
               <p className="text-xl text-gray-300 animate-fade-in-up animation-delay-200">
                 The world's first AI-powered smart wallet with real-time threat detection and autonomous security features.
-              </p>              <div className="flex flex-wrap gap-4 justify-center lg:justify-start animate-fade-in-up animation-delay-300">
+              </p>
+              <div className="flex flex-wrap gap-4 justify-center md:justify-start animate-fade-in-up animation-delay-300">
                 <Button 
                   onClick={() => {
                     if (!walletConnected) {
-                      // Use the window.ethereum provider to request account access
                       if (typeof window.ethereum !== 'undefined') {
                         window.ethereum.request({ method: 'eth_requestAccounts' })
                           .then((accounts: string[]) => {
@@ -395,11 +394,19 @@ const Index = () => {
                 <Button variant="outline" className="border-cyan-500 text-cyan-400 hover:bg-cyan-500/10 px-8 py-6 text-lg rounded-xl transition-all hover:scale-105">
                   Watch Demo
                 </Button>
-              </div>
-              <div className="flex items-center gap-8 justify-center lg:justify-start animate-fade-in-up animation-delay-400">
+              </div>              <div className="flex items-center gap-8 justify-center md:justify-start animate-fade-in-up animation-delay-400">
                 <div className="flex -space-x-4">
                   {[...Array(4)].map((_, i) => (
-                    <div key={i} className="w-12 h-12 rounded-full border-2 border-white bg-gradient-to-r from-purple-400 to-cyan-400"></div>
+                    <div
+                      key={i}
+                      className="w-10 h-10 rounded-full border-2 border-white/10 bg-gradient-to-br from-purple-500 to-cyan-500"
+                    >
+                      <img
+                        src={`https://api.dicebear.com/6.x/personas/svg?seed=${i}`}
+                        alt={`User avatar ${i + 1}`}
+                        className="w-full h-full rounded-full"
+                      />
+                    </div>
                   ))}
                 </div>
                 <div className="text-left">
@@ -407,61 +414,26 @@ const Index = () => {
                   <div className="text-gray-400">Protected Wallets</div>
                 </div>
               </div>
-            </div>            {/* Right side animated wallet visualization */}
-            <div className="flex-1 relative animate-float">
-              <div className="relative w-full aspect-square max-w-[400px] mx-auto">
-                {/* Spinning Crypto Icons */}
-                <div className="absolute inset-0 -m-20">
-                  {/* Bitcoin */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
-                    <div className="w-64 h-64 animate-spin-slow">
-                      <div className="absolute top-0 transform -translate-x-1/2">
-                        <div className="w-12 h-12 rounded-full bg-gradient-to-r from-yellow-400 to-yellow-600 shadow-lg flex items-center justify-center text-2xl">₿</div>
-                      </div>
-                      <div className="absolute top-1/2 right-0 transform translate-y-1/2">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-400 to-blue-600 shadow-lg flex items-center justify-center text-xl">Ξ</div>
-                      </div>
-                      <div className="absolute bottom-0 transform -translate-x-1/2">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-green-400 to-green-600 shadow-lg flex items-center justify-center">₳</div>
-                      </div>
-                      <div className="absolute top-1/2 left-0 transform -translate-y-1/2">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-r from-purple-400 to-purple-600 shadow-lg flex items-center justify-center">◎</div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+            </div>
 
-                {/* Main wallet card */}
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 rounded-3xl border border-white/10 shadow-2xl backdrop-blur-xl p-6 transform rotate-6 hover:rotate-0 transition-transform duration-500 scale-75">
-                  {/* Wallet content */}
-                  <div className="h-full flex flex-col">
-                    <div className="flex justify-between items-center mb-8">
-                      <Shield className="h-10 w-10 text-cyan-400" />
-                      <div className="flex space-x-2">
-                        {[...Array(3)].map((_, i) => (
-                          <div key={i} className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse delay-100"></div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="space-y-4">
-                      <div className="h-4 w-3/4 bg-white/5 rounded animate-pulse"></div>
-                      <div className="h-4 w-1/2 bg-white/5 rounded animate-pulse"></div>
-                    </div>
-                    <div className="mt-auto">
-                      <div className="grid grid-cols-3 gap-4">
-                        {[...Array(3)].map((_, i) => (
-                          <div key={i} className="h-20 bg-white/5 rounded-lg animate-pulse"></div>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                {/* Floating security elements */}
-                <div className="absolute -top-4 -right-4 w-20 h-20 bg-cyan-500/20 rounded-full animate-float-slow"></div>
-                <div className="absolute -bottom-4 -left-4 w-16 h-16 bg-purple-500/20 rounded-full animate-float-delayed"></div>
+            {/* Right Column - Wallet Image */}
+            <div className="relative">
+              {/* Background glow effects */}
+              <div className="absolute inset-0 -z-10">
+                <div className="absolute inset-0 bg-gradient-to-r from-purple-500/20 to-cyan-500/20 rounded-full blur-3xl transform scale-150"></div>
               </div>
-              {/* AI scanning effect */}
-              <div className="absolute inset-0 bg-gradient-to-t from-cyan-500/20 via-transparent to-transparent animate-scan"></div>
+              
+              {/* Wallet Image Container */}
+              <div className="relative max-w-[500px] mx-auto">
+                <img
+                  src="https://www.shrewsburycartoonfestival.org/wp-content/uploads/2025/02/313130.jpg"
+                  alt="3D Secure Wallet Visualization"
+                  className="w-full rounded-xl shadow-2xl ring-1 ring-white/10 hover:scale-105 hover:rotate-2 transition duration-300"
+                />
+                
+                {/* Overlay gradient for depth */}
+                <div className="absolute inset-0 rounded-xl bg-gradient-to-tr from-purple-500/10 via-transparent to-cyan-500/10"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -595,136 +567,16 @@ const Index = () => {
             <div className="space-y-6">
               <DAOPanel />
             </div>
-          )}          {activeTab === 'reports' && (
-            <div className="space-y-6">
-              <Card className="group bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-purple-500/20">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <span className="transform group-hover:scale-110 transition-transform">Community Threat Reports</span>
-                    <div className="relative h-6 w-6">
-                      <div className="absolute inset-0 bg-purple-500 rounded-full opacity-20 group-hover:animate-ping"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">🛡️</div>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-6">
-                    <p className="text-gray-400 group-hover:text-gray-300 transition-colors">
-                      Submit and verify suspicious contracts and activities. All reports are verified through DAO voting to ensure accuracy.
-                      <span className="text-purple-400 font-medium group-hover:animate-pulse"> Earn +5 Shield Points for verified reports!</span>
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Active Reports Section */}
-                      <div className="group/card p-4 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all duration-300 hover:scale-[1.02]">
-                        <h4 className="text-white font-medium mb-4 flex items-center gap-2">
-                          <span>Active Reports</span>
-                          <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
-                        </h4>
-                        <div className="text-sm text-gray-400 space-y-3">
-                          <div 
-                            className="flex flex-col p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                            onClick={() => handleDAOVote(1, 'approve')}
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="group-hover/card:text-white transition-colors">Token Drainer Contract</span>
-                              <Badge className="bg-red-500/20 text-red-400">Voting Active</Badge>
-                            </div>
-                            <p className="text-xs mt-2 text-gray-500">Contract: 0x7f...3a2b</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full w-3/4 bg-gradient-to-r from-cyan-500 to-purple-500"></div>
-                              </div>
-                              <span className="text-xs">75% Verified</span>
-                            </div>
-                          </div>
-                          <div 
-                            className="flex flex-col p-3 rounded-lg bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
-                            onClick={() => handleDAOVote(2, 'approve')}
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="group-hover/card:text-white transition-colors">Malicious Airdrop</span>
-                              <Badge className="bg-yellow-500/20 text-yellow-400">Needs Votes</Badge>
-                            </div>
-                            <p className="text-xs mt-2 text-gray-500">Contract: 0x9c...4d1e</p>
-                            <div className="mt-2 flex items-center gap-2">
-                              <div className="h-1 flex-1 bg-white/10 rounded-full overflow-hidden">
-                                <div className="h-full w-1/3 bg-gradient-to-r from-cyan-500 to-purple-500"></div>
-                              </div>
-                              <span className="text-xs">33% Verified</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Submit Report Form */}
-                      <div className="group/card p-4 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all duration-300 hover:scale-[1.02]">
-                        <h4 className="text-white font-medium mb-4 flex items-center gap-2">
-                          <span>Submit New Report</span>
-                          <div className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse"></div>
-                        </h4>
-                        <div className="space-y-4">
-                          <input
-                            type="text"
-                            placeholder="Contract Address"
-                            className="w-full bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500"
-                          />
-                          <select className="w-full bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500">
-                            <option value="">Select Threat Type</option>
-                            <option value="drainer">Token Drainer</option>
-                            <option value="phishing">Phishing Contract</option>
-                            <option value="rugpull">Potential Rug Pull</option>
-                            <option value="scam">Scam Token</option>
-                          </select>
-                          <textarea
-                            placeholder="Describe the suspicious behavior..."
-                            className="w-full bg-black/30 text-white border border-white/10 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-cyan-500 h-24 resize-none"
-                          ></textarea>
-                          <Button 
-                            className="w-full bg-gradient-to-r from-cyan-500 to-purple-600 hover:from-cyan-600 hover:to-purple-700 text-white transform transition-all duration-300 hover:scale-[1.02] hover:shadow-lg hover:shadow-cyan-500/20 rounded-xl py-3"
-                            onClick={handleThreatReport}
-                          >
-                            <span className="flex items-center justify-center gap-2">
-                              <span className="text-lg">Submit for DAO Review</span>
-                              <span className="text-sm bg-white/20 px-2 py-1 rounded-full group-hover/card:animate-pulse">+5 Points</span>
-                            </span>
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Verified Threats Card */}
-              <Card className="group bg-black/20 backdrop-blur-lg border-white/10 hover:bg-black/30 transition-all duration-300 hover:scale-[1.02] hover:shadow-2xl hover:shadow-green-500/20">
-                <CardHeader>
-                  <CardTitle className="text-white flex items-center gap-2">
-                    <span className="transform group-hover:scale-110 transition-transform">Verified Threats</span>
-                    <CheckCircle className="h-5 w-5 text-green-500" />
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 gap-3">
-                      <div className="flex justify-between items-center p-3 rounded-lg bg-white/5">
-                        <div className="flex flex-col">
-                          <span className="text-white">Rug Pull Contract</span>
-                          <span className="text-xs text-gray-500">0x8d...5f2c</span>
-                        </div>
-                        <Badge className="bg-green-500/20 text-green-400">100% Verified</Badge>
-                      </div>
-                      <div className="flex justify-between items-center p-3 rounded-lg bg-white/5">
-                        <div className="flex flex-col">
-                          <span className="text-white">Malicious NFT Mint</span>
-                          <span className="text-xs text-gray-500">0x3a...9e4d</span>
-                        </div>
-                        <Badge className="bg-green-500/20 text-green-400">100% Verified</Badge>
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+          )}          {activeTab === 'report' && (
+            <ThreatReport 
+              walletAddress={currentAddress}
+              onReportSubmit={(report) => {
+                setSecurityScore(prev => Math.min(100, prev + 5));
+                setLastAction('report');
+                setShowAIFeedback(true);
+                handleThreatReport();
+              }}
+            />
           )}{activeTab === 'recovery' && (
             <Card className="bg-black/20 backdrop-blur-lg border-white/10">
               <CardHeader>
@@ -745,24 +597,11 @@ const Index = () => {
                 />
                 <GuardianManager walletAddress={currentAddress} />
               </CardContent>
-            </Card>          )}
-
-          {activeTab === 'recovery' && (
-            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-              <CardHeader>
-                <CardTitle className="text-white">Guardian Recovery Settings</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-gray-400 text-sm">
-                    Manage your Guardian recovery settings. Enable recovery options to enhance wallet security.
-                  </p>
-                  
-                  <GuardianManager walletAddress={currentAddress} />
-                </div>
-              </CardContent>
-            </Card>
-          )}          {activeTab === 'register' && (
+            </Card>          )}          {activeTab === 'guardian' && (
+            <GuardianSettings 
+              walletAddress={currentAddress} 
+            />
+          )}{activeTab === 'register' && (
             <div className="space-y-6">
               <Card className="bg-black/20 backdrop-blur-lg border-white/10">
                 <CardHeader>

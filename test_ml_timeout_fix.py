@@ -38,7 +38,7 @@ def test_predict_api():
     # URLs to test
     urls = [
         "http://localhost:3000/api/predict",  # Local API using predict_v2.py
-        "https://ml-fraud-transaction-detection.onrender.com/predict"  # Direct ML service
+        "https://dl-fraud-detection.onrender.com/predict"  # Direct ML service
     ]
     
     # Test each URL with each test case

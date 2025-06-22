@@ -4,7 +4,7 @@ This document outlines the integration between our wallet application and the ex
 
 ## External ML API Details
 
-- **API Endpoint**: `https://ml-fraud-transaction-detection.onrender.com/predict`
+- **API Endpoint**: `https://dl-fraud-detection.onrender.com/predict`
 - **Purpose**: Detect potentially fraudulent or risky transactions
 - **Provider**: External ML service
 

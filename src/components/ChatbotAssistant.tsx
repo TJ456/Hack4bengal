@@ -11,7 +11,7 @@ const ChatbotAssistant: React.FC = () => {
   // WebSocket connection setup
   useEffect(() => {
     if (isOpen && !socketRef.current) {
-      socketRef.current = new WebSocket('wss://yugamax--chatbot.hf.space/ws/chat');
+      socketRef.current = new WebSocket('wss://chatbot-production-cf16.up.railway.app/ws /chat');
 
       socketRef.current.onopen = () => {
         console.log('WebSocket connected');

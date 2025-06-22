@@ -98,7 +98,7 @@ switch ($choice) {
         } else {
             Write-Host "   DATABASE_URL = [Your PostgreSQL connection string]" -ForegroundColor Yellow
             Write-Host "   JWT_SECRET = [A secure random string]" -ForegroundColor Yellow
-            Write-Host "   ML_MODEL_URL = https://ml-fraud-transaction-detection.onrender.com/predict" -ForegroundColor Yellow
+            Write-Host "   ML_MODEL_URL = https://dl-fraud-detection.onrender.com/predict" -ForegroundColor Yellow
             Write-Host "   ENVIRONMENT = production" -ForegroundColor Yellow
             Write-Host "   TELEGRAM_TOKEN = [Your Telegram bot token]" -ForegroundColor Yellow
             Write-Host "   ETH_RPC_URL = [Your Ethereum RPC URL]" -ForegroundColor Yellow
