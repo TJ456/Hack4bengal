@@ -18,6 +18,7 @@ import WalletAnalytics from '@/components/WalletAnalytics';
 import GuardianManager from '@/components/GuardianManager';
 import { useCivicStore } from '@/stores/civicStore';
 import SimpleCivicAuth from '@/components/civic/SimpleCivicAuth';
+import MEVProtectionTester from '@/components/MEVProtectionTester';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -514,6 +515,8 @@ const Index = () => {
 
               {/* Transaction History */}
               <TransactionHistory />
+              {/* MEV Protection Tester */}
+              <MEVProtectionTester />
             </div>
           )}
 
