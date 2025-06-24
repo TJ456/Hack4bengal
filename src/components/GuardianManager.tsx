@@ -302,7 +302,7 @@ const GuardianManager: React.FC<{ walletAddress: string | null }> = ({ walletAdd
 
           {/* Guardians List */}
           <div className="space-y-4">
-            <h3 className="font-medium">Current Guardians</h3>
+            <h3 className="font-medium">Current Guardians <span className="text-xs text-gray-500">({guardians.length})</span></h3>
             {guardians.length === 0 ? (
               <p className="text-sm text-muted-foreground">No guardians added yet</p>
             ) : (

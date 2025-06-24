@@ -10,6 +10,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Switch } from '@/components/ui/switch';
 import TransactionInterceptor from './TransactionInterceptor';
 
+// Only import getFlashbotsProvider if running in a Node.js/server environment
+let getFlashbotsProvider: any = null;
+if (typeof window === 'undefined') {
+  // @ts-ignore
+  getFlashbotsProvider = require('@/web3/flashbotsProvider').getFlashbotsProvider;
+}
+
 interface SendTransactionProps {
   onSuccess?: (txHash: string) => void;
   onFraudDetected?: (fraudData: any) => void;
@@ -343,7 +350,7 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
       return;
     }
 
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) < 0) {
       setError('Please enter a valid amount');
       setLoading(false);
       return;
@@ -453,18 +460,54 @@ const SendTransaction: React.FC<SendTransactionProps> = ({ onSuccess, onFraudDet
       const from = await signer.getAddress();
       console.log(`Preparing transaction from ${from} to ${recipient}`);
 
-      // Create transaction object with gas estimation
+      // Create transaction object with user-specified gas price
       const tx = {
         to: recipient,
         value: amountInWei,
-        // Let MetaMask handle gas estimation by default
+        gasPrice: ethers.parseUnits(gasPrice, 'gwei'), // Use user input for gas price
+        nonce: await signer.provider.getTransactionCount(await signer.getAddress()),
+        chainId: (await signer.provider.getNetwork()).chainId,
       };
 
-      console.log("Waiting for user to confirm transaction in wallet");
+      let transaction;
+      if (useMEVProtection) {
+        // --- MEV Protection enabled: send via Flashbots ---
+        try {
+          const flashbotsProvider = await getFlashbotsProvider();
+          const signedTx = await signer.signTransaction(tx);
+          const bundleResponse = await flashbotsProvider.sendBundle([
+            {
+              signedTransaction: signedTx,
+            },
+          ], await signer.provider.getBlockNumber() + 1);
 
-      // Send transaction - this will prompt the user in MetaMask
-      // The ML assessment has already run by this point - we're just executing the transaction
-      const transaction = await signer.sendTransaction(tx);
+          if ('error' in bundleResponse) {
+            throw new Error(bundleResponse.error.message);
+          }
+
+          const bundleResult = await bundleResponse.wait();
+          if (bundleResult === 0) {
+            throw new Error('Flashbots bundle not included in target block.');
+          }
+
+          // Simulate a tx hash for UI feedback (Flashbots does not return a public tx hash)
+          setSuccess('Transaction sent privately via Flashbots!');
+          setRecipient('');
+          setAmount('');
+          if (onSuccess) {
+            onSuccess('flashbots-private-bundle');
+          }
+          return;
+        } catch (fbErr) {
+          console.error('Flashbots/MEV relay error:', fbErr);
+          setError('MEV protection failed: ' + (fbErr.message || fbErr));
+          setLoading(false);
+          return;
+        }
+      } else {
+        // --- Normal transaction ---
+        transaction = await signer.sendTransaction(tx);
+      }
 
       console.log("Transaction confirmed by user and submitted:", transaction.hash);
 

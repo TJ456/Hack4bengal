@@ -34,7 +34,7 @@ type backend\.env | findstr DATABASE_URL
 
 echo.
 echo IMPORTANT: Update the password in backend\.env file:
-echo Change: postgresql://Records_owner:npg_fELAr2DGw3TZ@ep-odd-shape-a4yij4cq-pooler.us-east-1.aws.neon.tech/Records?sslmode=require
+echo Change: postgresql://neondb_owner:npg_ecZ8XOvH9dbp@ep-dark-snow-a1hb7o1k-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
 echo To:     postgresql://postgres:YOUR_ACTUAL_PASSWORD@localhost:5432/wallet
 echo.
 

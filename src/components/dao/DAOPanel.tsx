@@ -1,14 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, Clock, CheckCircle, XCircle, AlertCircle, AlertTriangle, ThumbsUp, ThumbsDown } from 'lucide-react';
-import contractService from '@/web3/contract';
-import walletConnector from '@/web3/wallet';
-import { voteOnProposal } from '@/web3/contract';
-import { shortenAddress, formatEth } from '@/web3/utils';
+import {
+  Users,
+  Clock,
+  CheckCircle,
+  XCircle,
+  AlertCircle,
+  AlertTriangle,
+  ThumbsUp,
+  ThumbsDown,
+  HelpCircle,
+} from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Skeleton } from '@/components/ui/skeleton';
 import QuadraticVoteInput from '../QuadraticVoteInput';
 import { useToast } from '@/hooks/use-toast';
+import { type ToastActionElement } from '@/components/ui/toast';
+import contractService from '@/web3/contract';
+import walletConnector from '@/web3/wallet';
+import { formatEth, shortenAddress } from '@/web3/utils';
 
 interface ScamReport {
   id: number;
@@ -20,15 +37,23 @@ interface ScamReport {
   votesFor: string;  // Wei string from contract
   votesAgainst: string;  // Wei string from contract
   status: 'active' | 'approved' | 'rejected';
+  category?: string;
 }
+
+type ToastProps = {
+  title: string;
+  description: string;
+  variant?: 'default' | 'destructive';
+  action?: ToastActionElement;
+};
 
 const EmptyState = () => (
   <div className="flex flex-col items-center justify-center p-8 text-center bg-black/20 rounded-lg border border-white/10">
     <AlertTriangle className="w-12 h-12 text-yellow-500 mb-4" />
-    <h3 className="text-xl font-semibold text-white mb-2">No Scam Reports Yet</h3>
+    <h3 className="text-xl font-semibold text-white mb-2">No Active Proposals</h3>
     <p className="text-gray-400 mb-4">
       Help secure the community by being the first to report suspicious activity.
-      Your report will be voted on by SHIELD token holders.
+      Your report will be voted on by SHIELD token holders using quadratic voting.
     </p>
     <Button 
       className="bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700"
@@ -45,99 +70,141 @@ const DAOPanel = () => {
   // State management
   const [userVotes, setUserVotes] = useState<{[key: number]: 'approve' | 'reject' | null}>({});
   const [proposals, setProposals] = useState<ScamReport[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userShield, setUserShield] = useState<string>('0'); // Wei string
-  const [isVoting, setIsVoting] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [totalVotes, setTotalVotes] = useState(0);
+  const [votingAccuracy, setVotingAccuracy] = useState(0);
+  const [isVoting, setIsVoting] = useState(false);
+
+  // Fetch data callback
+  const fetchData = useCallback(async () => {
+    if (!walletConnector.provider) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      // Get user's SHIELD token balance
+      const shieldBalance = await contractService.getShieldBalance(walletConnector.address);
+      setUserShield(shieldBalance);
+
+      // Get user's voting stats
+      const stats = await contractService.getUserVotingStats(walletConnector.address);
+      setTotalVotes(stats.totalVotes);
+      setVotingAccuracy(stats.accuracy);
+
+      // Get proposals from contract
+      const reports = await contractService.getScamReports();
+      
+      // Add category based on description keywords
+      const categorizedReports = reports.map(report => ({
+        ...report,
+        category: getCategoryFromDescription(report.description)
+      }));
+
+      setProposals(categorizedReports);
+    } catch (error: any) {
+      console.error("Error fetching DAO data:", error);
+      setError(error.message || "Failed to load DAO data");
+    } finally {
+      setLoading(false);
+    }
+  }, [walletConnector.address]);
 
   // Load proposals and user data from the contract
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        if (!walletConnector.address) return;
-
-        // Get all scam reports from the contract
-        const reports = await contractService.getScamReports();
-        setProposals(reports);
-
-        // Get user's SHIELD token balance
-        const shieldBalance = await contractService.getShieldBalance(walletConnector.address);
-        setUserShield(shieldBalance);
-        
-      } catch (err: any) {
-        console.error("Error fetching DAO data:", err);
-        setError(err.message || "Failed to load DAO data");
-      } finally {
-        setLoading(false);
-      }
-    };
-    
     fetchData();
     
-    // Set up event listeners
-    const handleAccountChange = () => fetchData();
-    window.addEventListener('wallet_accountChanged', handleAccountChange);
-    
-    return () => {
-      window.removeEventListener('wallet_accountChanged', handleAccountChange);
+    // Set up event listeners for updates
+    const handleAccountChange = () => {
+      setLoading(true); // Show loading while refreshing data
+      fetchData();
     };
-  }, []);
-  
+
+    const handleNewProposal = () => {
+      toast({
+        title: "New Proposal",
+        description: "A new proposal has been created. Refreshing data...",
+      } as ToastProps);
+      fetchData();
+    };
+
+    const handleNewVote = () => fetchData();
+    
+    // Register listeners
+    walletConnector.provider?.on('accountsChanged', handleAccountChange);
+    contractService.on('ProposalCreated', handleNewProposal);
+    contractService.on('VoteCast', handleNewVote);
+    
+    // Cleanup on unmount
+    return () => {
+      walletConnector.provider?.off('accountsChanged', handleAccountChange);
+      contractService.off('ProposalCreated', handleNewProposal);
+      contractService.off('VoteCast', handleNewVote);
+    };
+  }, [fetchData, toast]);
+
   // Handle quadratic voting
   const handleVote = async (proposalId: number, tokens: string, isApprove: boolean) => {
     if (!walletConnector.address) {
-      setError("Please connect your wallet to vote");
+      toast({
+        title: "Wallet Not Connected",
+        description: "Please connect your wallet to vote on proposals.",
+        variant: "destructive"
+      });
       return;
     }
-    
+
     try {
       setIsVoting(true);
       setError(null);
       
-      // Update local state for immediate UI feedback
+      // Update UI immediately for better UX
       setUserVotes(prev => ({ ...prev, [proposalId]: isApprove ? 'approve' : 'reject' }));
       
-      // Get token approval if needed
+      // Approve tokens if needed
       const needsApproval = await contractService.needsShieldApproval(tokens);
       if (needsApproval) {
-        await contractService.approveShield(tokens);
+        const approveTx = await contractService.approveShield(tokens);
+        await approveTx.wait();
       }
       
-      // Submit quadratic vote to the blockchain
+      // Cast the vote with quadratic voting power
       const tx = await contractService.castQuadraticVote(
         proposalId.toString(),
         isApprove,
         tokens
       );
       
-      // Wait for transaction confirmation
       await tx.wait();
+      
+      // Calculate voting power for toast message
+      const votingPower = Math.sqrt(Number(formatEth(tokens)));
+      
+      toast({
+        title: "🗳️ Vote Submitted",
+        description: `Your vote has been recorded with ${votingPower.toFixed(2)} voting power`,
+      } as ToastProps);
       
       // Refresh data
       const reports = await contractService.getScamReports();
-      setProposals(reports);
+      setProposals(reports.map(report => ({
+        ...report,
+        category: getCategoryFromDescription(report.description)
+      })));
       
-      // Show success message
-      toast({
-        title: "🗳️ Vote Submitted",
-        description: `Your vote has been recorded with ${Math.sqrt(Number(formatEth(tokens)))} voting power`,
-      });
-      
-    } catch (err: any) {
-      console.error("Voting error:", err);
-      setError(err.message || "Failed to submit vote");
+    } catch (error: any) {
+      console.error("Voting error:", error);
+      setError(error.message || "Failed to submit vote");
       // Revert the optimistic update
       setUserVotes(prev => ({ ...prev, [proposalId]: null }));
       
       toast({
         title: "❌ Vote Failed",
-        description: err.message || "Failed to submit vote",
+        description: error.message || "Failed to submit vote",
         variant: "destructive"
-      });
+      } as ToastProps);
     } finally {
       setIsVoting(false);
     }
@@ -155,105 +222,60 @@ const DAOPanel = () => {
     }
   };
 
-  // Get CSS class for category badge
-  const getCategoryColor = (description: string) => {
-    if (description.toLowerCase().includes('nft')) {
-      return 'bg-purple-500/20 text-purple-400';
-    }
-    if (description.toLowerCase().includes('honeypot')) {
-      return 'bg-yellow-500/20 text-yellow-400';
-    }
-    if (description.toLowerCase().includes('approval')) {
-      return 'bg-red-500/20 text-red-400';
-    }
-    if (description.toLowerCase().includes('phish')) {
-      return 'bg-orange-500/20 text-orange-400';
-    }
-    return 'bg-gray-500/20 text-gray-400';
+  // Get category from description
+  const getCategoryFromDescription = (description: string): string => {
+    const lowerDesc = description.toLowerCase();
+    if (lowerDesc.includes('nft')) return 'NFT Scam';
+    if (lowerDesc.includes('defi') || lowerDesc.includes('liquidity')) return 'DeFi Attack';
+    if (lowerDesc.includes('phish')) return 'Phishing';
+    if (lowerDesc.includes('malware')) return 'Malware';
+    if (lowerDesc.includes('honeypot')) return 'Honeypot';
+    if (lowerDesc.includes('airdrop')) return 'Airdrop Scam';
+    if (lowerDesc.includes('hack')) return 'Protocol Hack';
+    return 'Other';
   };
 
-  useEffect(() => {
-    const fetchProposals = async () => {
-      try {
-        setIsLoading(true);
-        // Use provider directly from walletConnector
-        if (!walletConnector.provider) {
-          toast({
-            title: "Wallet Not Connected",
-            description: "Please connect your wallet to view DAO proposals.",
-            variant: "destructive"
-          });
-          return;
-        }
+  // Get CSS class for category badge
+  const getCategoryColor = (category: string) => {
+    switch(category) {
+      case 'NFT Scam':
+        return 'bg-purple-500/20 text-purple-400';
+      case 'DeFi Attack':
+        return 'bg-blue-500/20 text-blue-400';
+      case 'Phishing':
+        return 'bg-orange-500/20 text-orange-400';
+      case 'Malware':
+        return 'bg-red-500/20 text-red-400';
+      case 'Honeypot':
+        return 'bg-yellow-500/20 text-yellow-400';
+      case 'Airdrop Scam':
+        return 'bg-green-500/20 text-green-400';
+      case 'Protocol Hack':
+        return 'bg-pink-500/20 text-pink-400';
+      default:
+        return 'bg-gray-500/20 text-gray-400';
+    }
+  };
 
-        // Get existing proposals from the contract
-        try {
-          // For demo, generate some sample data until contract is fully integrated
-          const sampleProposals: ScamReport[] = [
-            {
-              id: 1,
-              reporter: "0x742d35Cc6634C0532925a3b8D4C9db96c4b4d8b",
-              suspiciousAddress: "0xa12066091c6F636505Bd64F2160EA1884142B38c",
-              description: "Fake NFT Mint Site",
-              evidence: "https://evidence.xyz/proof1",
-              timestamp: new Date(),
-              votesFor: "100000000000000000000",  // 100 tokens
-              votesAgainst: "50000000000000000000", // 50 tokens
-              status: 'active'
-            }
-          ];
-          setProposals(sampleProposals);
-        } catch (error) {
-          console.error("Contract interaction failed:", error);
-          setProposals([]);
-        }
-        
-        setIsLoading(false);
-      } catch (error) {
-        console.error("Failed to fetch proposals:", error);
-        setIsLoading(false);
-        toast({
-          title: "Error Loading Proposals",
-          description: "Failed to load DAO proposals. Please try again.",
-          variant: "destructive"
-        });
-      }
-    };
-
-    fetchProposals();
-  }, [toast]);
-
-  if (isLoading) {
+  if (loading) {
     return (
       <Card className="bg-black/20 backdrop-blur-lg border-white/10">
         <CardHeader>
-          <CardTitle className="text-white">Quadratic Voting DAO</CardTitle>
+          <CardTitle className="text-white flex items-center gap-2">
+            <Users className="h-5 w-5 text-cyan-400" />
+            Quadratic Voting DAO
+          </CardTitle>
           <CardDescription className="text-gray-400">
             Loading community proposals...
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center p-8">
-            <div className="w-8 h-8 border-t-2 border-cyan-500 rounded-full animate-spin"></div>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-24 bg-white/5" />
+            ))}
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show empty state if no proposals
-  if (!proposals || proposals.length === 0) {
-    return (
-      <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-        <CardHeader>
-          <CardTitle className="text-white">Quadratic Voting DAO</CardTitle>
-          <CardDescription className="text-gray-400">
-            Vote on community-reported threats using your SHIELD tokens. 
-            Your voting power scales with the square root of tokens used.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <EmptyState />
+          <Skeleton className="h-[200px] bg-white/5" />
         </CardContent>
       </Card>
     );
@@ -267,13 +289,62 @@ const DAOPanel = () => {
             <Users className="h-5 w-5 text-cyan-400" />
             <span>Quadratic Voting DAO</span>
           </CardTitle>
-          <CardDescription>
+          <CardDescription className="text-gray-400">
             Vote on community-reported threats using your SHIELD tokens.
             Your voting power scales with the square root of tokens used.
           </CardDescription>
         </CardHeader>
         
         <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <TooltipProvider>
+              <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  {formatEth(userShield)} SHIELD
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Your SHIELD token balance. More tokens = more voting power (quadratically).
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="text-sm text-gray-400">Available Balance</div>
+              </div>
+
+              <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  {totalVotes}
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Total number of proposals you've voted on
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="text-sm text-gray-400">Votes Cast</div>
+              </div>
+
+              <div className="text-center p-4 rounded-lg bg-white/5 border border-white/10">
+                <div className="text-2xl font-bold text-white flex items-center justify-center gap-2">
+                  {votingAccuracy}%
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-gray-400" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Percentage of your votes that aligned with final outcomes
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+                <div className="text-sm text-gray-400">Voting Accuracy</div>
+              </div>
+            </TooltipProvider>
+          </div>
+
           {error && (
             <div className="p-4 mb-4 bg-red-500/20 border border-red-500/30 rounded-md flex items-center">
               <AlertCircle className="h-5 w-5 text-red-400 mr-2" />
@@ -281,24 +352,14 @@ const DAOPanel = () => {
             </div>
           )}
           
-          {loading && (
-            <div className="text-center p-4">
-              <p className="text-gray-400">Loading proposals...</p>
-            </div>
-          )}
-          
-          {!walletConnector.address && !loading && (
+          {!walletConnector.address && (
             <div className="text-center p-4 bg-blue-500/20 border border-blue-500/30 rounded-md">
               <p className="text-blue-400">Connect your wallet to view and vote on DAO proposals</p>
             </div>
           )}
           
-          {proposals.length === 0 && !loading && walletConnector.address && (
-            <Card className="bg-black/20 backdrop-blur-lg border-white/10">
-              <CardContent className="p-6 text-center">
-                <p className="text-gray-400">No scam reports found. Be the first to report a scam!</p>
-              </CardContent>
-            </Card>
+          {proposals.length === 0 && walletConnector.address && (
+            <EmptyState />
           )}
           
           {proposals.map((proposal) => (
@@ -316,8 +377,8 @@ const DAOPanel = () => {
                     </div>
                     
                     <div className="flex items-center space-x-2">
-                      <Badge className={getCategoryColor(proposal.description)}>
-                        {proposal.description.split(' ')[0]}
+                      <Badge className={getCategoryColor(proposal.category || '')}>
+                        {proposal.category || 'Uncategorized'}
                       </Badge>
                       <span className="text-sm text-gray-400">
                         Reported by {shortenAddress(proposal.reporter)}
