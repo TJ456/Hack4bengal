@@ -239,11 +239,4 @@ Always wrap contract interactions in try-catch blocks to handle:
 - Network errors
 - Transaction rejections
 
-## Best Practices
 
-1. Always check for wallet connection before attempting transactions
-2. Display loading states during transactions
-3. Provide clear feedback after transactions complete
-4. Handle error states gracefully
-5. Implement transaction confirmation monitoring 
-6. Consider gas estimations for better UX
